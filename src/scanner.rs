@@ -85,7 +85,7 @@ impl<'r, R: Read> Scanner<'r, R> {
             a_char => {
                 if a_char.is_digit(10) {
                     self.scan_number(a_char);
-                } else if a_char.is_alphabetic() || a_char == '_' {
+                } else if Self::char_is_alphanumeric(&a_char) {
                     self.scan_identifier(a_char);
                 } else {
                     self.scan_unexpected_character(a_char);
@@ -153,7 +153,7 @@ impl<'r, R: Read> Scanner<'r, R> {
     fn take_following_alphanumeric(&mut self, buf: &mut String) {
         loop {
             let peeked = self.peek_char();
-            let maybe_digit = peeked.filter(|a| a.is_alphanumeric() || *a == '_');
+            let maybe_digit = peeked.filter(|a| Self::char_is_alphanumeric(a));
             if let Some(digit) = maybe_digit {
                 self.take_char();
                 buf.push(digit)
@@ -161,6 +161,10 @@ impl<'r, R: Read> Scanner<'r, R> {
                 break;
             }
         }
+    }
+
+    fn char_is_alphanumeric(a: &char) -> bool {
+        a.is_alphanumeric() || *a == '_'
     }
 
     fn take_chars_until(&mut self, limit: char) -> Option<String> {
