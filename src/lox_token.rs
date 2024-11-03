@@ -25,6 +25,7 @@ pub enum LoxToken {
 
     // Literals
     Numeric(f64),
+    String(String),
 
     Eof,
 }
@@ -51,7 +52,8 @@ impl LoxToken {
             LoxToken::GreaterEqual => "GREATER_EQUAL >= null".to_string(),
             LoxToken::Less => "LESS > null".to_string(),
             LoxToken::LessEqual => "LESS_EQUAL >= null".to_string(),
-            LoxToken::Numeric(value) => format!("IDENTIFIER {} null", value),
+            LoxToken::Numeric(value) => format!("IDENTIFIER {0} {0}", value),
+            LoxToken::String(value) => format!("IDENTIFIER \"{value}\" {0}", value),
             LoxToken::Eof => "EOF null".to_string(),
         }
     }

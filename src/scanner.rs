@@ -5,16 +5,16 @@ use crate::lox_token::LoxToken;
 pub struct Scanner<'r, R: Read> {
     input: Reader<&'r mut R>,
     tokens: Vec<LoxToken>,
-    peeked: Option<char>
+    peeked: Option<char>,
 }
 
 
-impl <'r, R: Read> Scanner<'r, R> {
+impl<'r, R: Read> Scanner<'r, R> {
     pub fn new(read: &'r mut R) -> Scanner<'r, R> {
         Scanner {
             input: Reader::new(read),
             tokens: vec![],
-            peeked: None
+            peeked: None,
         }
     }
 
@@ -52,8 +52,23 @@ impl <'r, R: Read> Scanner<'r, R> {
             '=' => self.scan_maybe_two_chars(LoxToken::Equal, LoxToken::EqualEqual),
             '>' => self.scan_maybe_two_chars(LoxToken::Greater, LoxToken::GreaterEqual),
             '<' => self.scan_maybe_two_chars(LoxToken::Less, LoxToken::LessEqual),
-            _ => self.scan_number(a_char)
+            '"' => self.scan_string(),
+            ' ' => {}
+            '\n' => {}
+            '\r' => {}
+            a_char => {
+                if a_char.is_digit(10) {
+                    self.scan_number(a_char)
+                } else {
+                    panic!("not implemented")
+                }
+            }
         }
+    }
+
+    fn scan_string(&mut self) {
+        let buf = self.take_chars_until('"');
+        self.tokens.push(LoxToken::String(buf.unwrap()));
     }
 
     fn scan_number(&mut self, a_char: char) {
@@ -76,14 +91,27 @@ impl <'r, R: Read> Scanner<'r, R> {
                 self.take_char();
                 buf.push(digit)
             } else {
-                break
+                break;
             }
         }
     }
 
+    fn take_chars_until(&mut self, limit: char) -> Option<String> {
+        let mut buf = String::new();
+        loop {
+            let taken = self.take_char()?;
+            if taken == limit {
+                break
+            } else {
+                buf.push(taken)
+            }
+        }
+        Some(buf)
+    }
+
     fn take_char(&mut self) -> Option<char> {
         if self.peeked.is_some() {
-            return self.peeked.take()
+            return self.peeked.take();
         }
 
         match self.input.next_char() {
@@ -94,7 +122,7 @@ impl <'r, R: Read> Scanner<'r, R> {
 
     fn peek_char(&mut self) -> Option<char> {
         if self.peeked.is_some() {
-            return self.peeked.clone()
+            return self.peeked.clone();
         }
 
         let next_char = self.take_char();
@@ -113,7 +141,7 @@ impl <'r, R: Read> Scanner<'r, R> {
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use std::io::{Cursor};
     use super::*;
 
@@ -127,133 +155,170 @@ mod tests{
     #[test]
     fn test_left_paren() {
         let tokens = scan_program("(");
-        assert_eq!(tokens, vec![ LoxToken::LeftParen, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::Eof]);
     }
 
     #[test]
     fn test_right_paren() {
         let tokens = scan_program(")");
-        assert_eq!(tokens, vec![ LoxToken::RightParen, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::RightParen, LoxToken::Eof]);
     }
 
     #[test]
     fn test_left_brace() {
         let tokens = scan_program("{");
-        assert_eq!(tokens, vec![ LoxToken::LeftBrace, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::LeftBrace, LoxToken::Eof]);
     }
 
     #[test]
     fn test_right_brace() {
         let tokens = scan_program("}");
-        assert_eq!(tokens, vec![ LoxToken::RightBrace, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::RightBrace, LoxToken::Eof]);
     }
 
     #[test]
     fn test_comma() {
         let tokens = scan_program(",");
-        assert_eq!(tokens, vec![ LoxToken::Comma, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Comma, LoxToken::Eof]);
     }
 
     #[test]
     fn test_dot() {
         let tokens = scan_program(".");
-        assert_eq!(tokens, vec![ LoxToken::Dot, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Eof]);
     }
 
     #[test]
     fn test_minus() {
         let tokens = scan_program("-");
-        assert_eq!(tokens, vec![ LoxToken::Minus, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Minus, LoxToken::Eof]);
     }
 
     #[test]
     fn test_plus() {
         let tokens = scan_program("+");
-        assert_eq!(tokens, vec![ LoxToken::Plus, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Plus, LoxToken::Eof]);
     }
 
     #[test]
     fn test_semicolon() {
         let tokens = scan_program(";");
-        assert_eq!(tokens, vec![ LoxToken::Semicolon, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Semicolon, LoxToken::Eof]);
     }
 
     #[test]
     fn test_slash() {
         let tokens = scan_program("/");
-        assert_eq!(tokens, vec![ LoxToken::Slash, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Slash, LoxToken::Eof]);
     }
 
     #[test]
     fn test_star() {
         let tokens = scan_program("*");
-        assert_eq!(tokens, vec![ LoxToken::Star, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Star, LoxToken::Eof]);
     }
 
     #[test]
     fn test_bang() {
         let tokens = scan_program("!");
-        assert_eq!(tokens, vec![ LoxToken::Bang, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Bang, LoxToken::Eof]);
     }
 
     #[test]
     fn test_bang_equal() {
         let tokens = scan_program("!=");
-        assert_eq!(tokens, vec![ LoxToken::BangEqual, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::BangEqual, LoxToken::Eof]);
     }
 
     #[test]
     fn test_less_than() {
         let tokens = scan_program("<");
-        assert_eq!(tokens, vec![ LoxToken::Less, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Less, LoxToken::Eof]);
     }
 
     #[test]
     fn test_less_equal() {
         let tokens = scan_program("<=");
-        assert_eq!(tokens, vec![ LoxToken::LessEqual, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::LessEqual, LoxToken::Eof]);
     }
 
     #[test]
     fn triple_equals_creates_one_double_equal_and_then_a_simple_equal() {
         let tokens = scan_program("===");
-        assert_eq!(tokens, vec![ LoxToken::EqualEqual, LoxToken::Equal, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::EqualEqual, LoxToken::Equal, LoxToken::Eof]);
     }
 
     #[test]
     fn bang_bang_equal_gets_bang_bang_equal() {
         let tokens = scan_program("!!=");
-        assert_eq!(tokens, vec![ LoxToken::Bang, LoxToken::BangEqual, LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Bang, LoxToken::BangEqual, LoxToken::Eof]);
     }
 
     #[test]
     fn only_number_one_returns_digit_1() {
         let tokens = scan_program("1");
-        assert_eq!(tokens, vec![ LoxToken::Numeric(1.0), LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Numeric(1.0), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_one_returns_digit_99() {
         let tokens = scan_program("99");
-        assert_eq!(tokens, vec![ LoxToken::Numeric(99.0), LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Numeric(99.0), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_1_one_returns_digit_99_dot_1() {
         let tokens = scan_program("99.1");
-        assert_eq!(tokens, vec![ LoxToken::Numeric(99.1), LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Numeric(99.1), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_returns_digit_99_dot_0() {
         let tokens = scan_program("99.");
-        assert_eq!(tokens, vec![ LoxToken::Numeric(99.0), LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Numeric(99.0), LoxToken::Eof]);
     }
 
 
     #[test]
     fn dot_nine_nine_returns_digit_0_dot_99() {
         let tokens = scan_program(".99");
-        assert_eq!(tokens, vec![ LoxToken::Dot, LoxToken::Numeric(99.0), LoxToken::Eof ]);
+        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Numeric(99.0), LoxToken::Eof]);
+    }
+
+    #[test]
+    fn white_spaces_are_ignored() {
+        let tokens = scan_program("( )");
+        assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::RightParen, LoxToken::Eof]);
+        let tokens = scan_program(" ");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
+
+    #[test]
+    fn new_lines_do_not_produce_any_token() {
+        let tokens = scan_program("(\n)");
+        assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::RightParen, LoxToken::Eof]);
+        let tokens = scan_program("\n");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
+
+    #[test]
+    fn windows_new_lines_do_not_produce_any_token() {
+        let tokens = scan_program("(\r\n)");
+        assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::RightParen, LoxToken::Eof]);
+        let tokens = scan_program("\r\n");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
+
+    #[test]
+    fn string_test() {
+        let tokens = scan_program("\"foo\"");
+        assert_eq!(tokens, vec![LoxToken::String("foo".to_string()), LoxToken::Eof]);
+    }
+
+    #[test]
+    fn string_can_have_any_character_inside() {
+        let string_content = "(){}\\+-.,;: \n \r 123 asd ";
+        let tokens = scan_program(&format!("\"{}\"", string_content));
+        assert_eq!(tokens, vec![LoxToken::String(string_content.to_string()), LoxToken::Eof]);
     }
 }
