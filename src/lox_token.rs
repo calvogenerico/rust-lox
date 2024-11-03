@@ -69,8 +69,8 @@ impl LoxToken {
             LoxToken::EqualEqual => "EQUAL_EQUAL == null".to_string(),
             LoxToken::Greater => "GREATER > null".to_string(),
             LoxToken::GreaterEqual => "GREATER_EQUAL >= null".to_string(),
-            LoxToken::Less => "LESS > null".to_string(),
-            LoxToken::LessEqual => "LESS_EQUAL >= null".to_string(),
+            LoxToken::Less => "LESS < null".to_string(),
+            LoxToken::LessEqual => "LESS_EQUAL <= null".to_string(),
             LoxToken::Numeric(value) => format!("IDENTIFIER {value} {value}"),
             LoxToken::String(value) => format!("IDENTIFIER \"{value}\" {value}"),
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
@@ -106,5 +106,15 @@ mod tests {
     #[test]
     fn bang_equal_to_string() {
         assert_eq!(&LoxToken::BangEqual.to_string(), "BANG_EQUAL != null")
+    }
+
+    #[test]
+    fn less_to_string() {
+        assert_eq!(&LoxToken::Less.to_string(), "LESS < null")
+    }
+
+    #[test]
+    fn less_equal_to_string() {
+        assert_eq!(&LoxToken::LessEqual.to_string(), "LESS_EQUAL <= null")
     }
 }
