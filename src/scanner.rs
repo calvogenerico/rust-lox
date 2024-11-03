@@ -121,7 +121,7 @@ impl<'r, R: Read> Scanner<'r, R> {
         if let Some(content) = self.take_chars_until('"') {
             self.tokens.push(LoxToken::String(content));
         } else {
-            self.errors.push(format!("[Line {start}] Error: Unterminated string."));
+            self.errors.push(format!("[line {start}] Error: Unterminated string."));
         }
     }
 
@@ -551,6 +551,6 @@ mod tests {
     fn string_not_terminated_produce_an_error() {
         let (tokens, errors) = scan_program_with_errors("\"bar\" \"unterminated");
         assert_eq!(tokens, vec![LoxToken::String("bar".to_string()), LoxToken::Eof]);
-        assert_eq!(errors, vec!["[Line 1] Error: Unterminated string."]);
+        assert_eq!(errors, vec!["[line 1] Error: Unterminated string."]);
     }
 }
