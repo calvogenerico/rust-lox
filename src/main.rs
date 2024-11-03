@@ -28,8 +28,8 @@ fn main() -> Result<(), Error> {
     match args.command {
         Commands::Tokenize { file_path: Some(path) } => {
             let mut input = File::open(&path)?;
-            let mut scanner = Scanner::new();
-            let scanned = scanner.scan_tokens(&mut input);
+            let mut scanner = Scanner::new(&mut input);
+            let scanned = scanner.scan_tokens();
 
             for token in scanned {
                 println!("{}", token.to_str());

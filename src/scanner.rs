@@ -1,8 +1,10 @@
 use std::io::{Read};
 use utf8_read::{Char, Reader};
 
-pub struct Scanner {
+pub struct Scanner<'r, R: Read> {
+    input: Reader<&'r mut R>,
     tokens: Vec<LoxToken>,
+    peeked: Option<char>
 }
 
 
@@ -53,20 +55,21 @@ impl LoxToken {
     }
 }
 
-impl Scanner {
-    pub fn new() -> Scanner {
+impl <'r, R: Read> Scanner<'r, R> {
+    pub fn new(read: &'r mut R) -> Scanner<'r, R> {
         Scanner {
-            tokens: vec![]
+            input: Reader::new(read),
+            tokens: vec![],
+            peeked: None
         }
     }
 
-    pub fn scan_tokens<R: Read>(&mut self, reader: R) -> Vec<LoxToken> {
-        let mut utf8 = Reader::new(reader);
-
-        while !utf8.eof() {
-            if let Ok(Char::Char(a_char)) = utf8.next_char() {
-                self.scan_char(a_char, &mut utf8)
-            }
+    pub fn scan_tokens(&mut self) -> Vec<LoxToken> {
+        while !self.eof() {
+            let next_char = self.take_char();
+            if next_char.is_some() {
+                self.scan_char(next_char.unwrap())
+            };
         }
 
         self.tokens.push(LoxToken::Eof);
@@ -74,7 +77,11 @@ impl Scanner {
         self.tokens.clone()
     }
 
-    fn scan_char<R: Read>(&mut self, a_char: char, mut rem: &mut Reader<R>) {
+    fn eof(&self) -> bool {
+        self.input.eof()
+    }
+
+    fn scan_char(&mut self, a_char: char) {
         match a_char {
             '(' => self.tokens.push(LoxToken::LeftParen),
             ')' => self.tokens.push(LoxToken::RightParen),
@@ -87,33 +94,34 @@ impl Scanner {
             ';' => self.tokens.push(LoxToken::Semicolon),
             '/' => self.tokens.push(LoxToken::Slash),
             '*' => self.tokens.push(LoxToken::Star),
-            '!' => {
-                let followed_by_equals = matches!(
-                    rem.peekable().peek(),
-                    Some(Ok('='))
-                );
+            '!' => self.scan_maybe_two_chars(LoxToken::Bang, LoxToken::BangEqual),
+            '=' => self.scan_maybe_two_chars(LoxToken::Equal, LoxToken::EqualEqual),
+            _ => {}
+        }
+    }
 
-                if followed_by_equals {
-                    rem.next();
-                    self.tokens.push(LoxToken::BangEqual);
-                } else {
-                    self.tokens.push(LoxToken::Bang)
-                }
-            },
-            '=' => {
-                let followed_by_equals = matches!(
-                    rem.peekable().peek(),
-                    Some(Ok('='))
-                );
+    fn take_char(&mut self) -> Option<char> {
+        if self.peeked.is_some() {
+            return self.peeked.take()
+        }
+        
+        match self.input.next_char() {
+            Ok(Char::Char(res)) => Some(res),
+            _ => None
+        }
+    }
 
-                if followed_by_equals {
-                    rem.next();
-                    self.tokens.push(LoxToken::EqualEqual);
-                } else {
-                    self.tokens.push(LoxToken::Equal)
-                }
-            },
-            another => println!("another: {}", another)
+    fn peek_char(&mut self) -> Option<char> {
+        let next_char = self.take_char();
+        self.peeked.replace(next_char?);
+        self.peeked.clone()
+    }
+
+    fn scan_maybe_two_chars(&mut self, token1: LoxToken, token2: LoxToken) {
+        if self.peek_char().is_some_and(|c| c == '=') {
+            self.tokens.push(token2)
+        } else {
+            self.tokens.push(token1)
         }
     }
 }
