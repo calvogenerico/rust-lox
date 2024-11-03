@@ -1,8 +1,10 @@
-use std::env;
-use std::fs;
-use std::io::{self, Write};
-use clap::{Parser, Subcommand};
+mod scanner;
 
+use std::env;
+use std::fs::File;
+use std::io::{self, Write};
+use clap::{Error, Parser, Subcommand};
+use crate::scanner::Scanner;
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "git")]
@@ -22,23 +24,20 @@ enum Commands {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let args = Cli::parse();
 
     match args.command {
         Commands::Tokenize { file_path: Some(path) } => {
-            let file_contents = fs::read_to_string(&path).unwrap_or_else(|_| {
-                writeln!(io::stderr(), "Failed to read file {}", &path).unwrap();
-                String::new()
-            });
+            let mut input = File::open(&path)?;
+            let mut scanner = Scanner::new();
+            let scanned = scanner.scan_tokens(&mut input);
 
-            // Uncomment this block to pass the first stage
-            if !file_contents.is_empty() {
-                panic!("Scanner not implemented");
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
+            for token in scanned {
+                println!("{}", token.to_str());
             }
         },
         _ => panic!("error")
     }
+    Ok(())
 }
