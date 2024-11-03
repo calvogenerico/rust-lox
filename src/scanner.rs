@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter};
-use std::io::{BufReader, Read};
-use utf8_read::{Char, Reader};
+use std::fmt::{Display};
+use std::io::{Read};
+use utf8_read::{Reader};
 
 pub struct Scanner {
     tokens: Vec<LoxToken>,
@@ -14,6 +14,13 @@ pub enum LoxToken {
     RightParen,
     LeftBrace,
     RightBrace,
+    Comma,
+    Dot,
+    Minus,
+    Plus,
+    Semicolon,
+    Slash,
+    Star,
     Eof,
 }
 
@@ -24,7 +31,14 @@ impl LoxToken {
             LoxToken::RightParen => "RIGHT_PAREN ) null",
             LoxToken::LeftBrace => "LEFT_BRACE { null",
             LoxToken::RightBrace => "RIGHT_BRACE } null",
-            LoxToken::Eof => "EOF null"
+            LoxToken::Comma => "COMMA , null",
+            LoxToken::Dot => "DOT . null",
+            LoxToken::Minus => "MINUS - null",
+            LoxToken::Plus => "PLUS + null",
+            LoxToken::Semicolon => "SEMICOLON ; null",
+            LoxToken::Slash => "SLASH / null",
+            LoxToken::Star => "STAR * null",
+            LoxToken::Eof => "EOF null",
         }
     }
 }
@@ -53,8 +67,15 @@ impl Scanner {
         match a_char {
             '(' => self.tokens.push(LoxToken::LeftParen),
             ')' => self.tokens.push(LoxToken::RightParen),
-            '{' => self.tokens.push(LoxToken::RightBrace),
+            '{' => self.tokens.push(LoxToken::LeftBrace),
             '}' => self.tokens.push(LoxToken::RightBrace),
+            ',' => self.tokens.push(LoxToken::Comma),
+            '.' => self.tokens.push(LoxToken::Dot),
+            '-' => self.tokens.push(LoxToken::Minus),
+            '+' => self.tokens.push(LoxToken::Plus),
+            ';' => self.tokens.push(LoxToken::Semicolon),
+            '/' => self.tokens.push(LoxToken::Slash),
+            '*' => self.tokens.push(LoxToken::Star),
             _ => println!("another")
         }
     }
