@@ -1,4 +1,5 @@
 mod scanner;
+mod lox_token;
 
 use std::fs::File;
 use clap::{Error, Parser, Subcommand};
