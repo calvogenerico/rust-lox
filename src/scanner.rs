@@ -24,6 +24,8 @@ pub enum LoxToken {
     // One or Two tokens
     Bang,
     BangEqual,
+    Equal,
+    EqualEqual,
 
     Eof,
 }
@@ -44,6 +46,8 @@ impl LoxToken {
             LoxToken::Star => "STAR * null",
             LoxToken::Bang => "BANG ! null",
             LoxToken::BangEqual => "BANG_EQUAL ! null",
+            LoxToken::Equal => "EQUAL = null",
+            LoxToken::EqualEqual => "EQUAL_EQUAL == null",
             LoxToken::Eof => "EOF null",
         }
     }
@@ -94,6 +98,19 @@ impl Scanner {
                     self.tokens.push(LoxToken::BangEqual);
                 } else {
                     self.tokens.push(LoxToken::Bang)
+                }
+            },
+            '=' => {
+                let followed_by_equals = matches!(
+                    rem.peekable().peek(),
+                    Some(Ok('='))
+                );
+
+                if followed_by_equals {
+                    rem.next();
+                    self.tokens.push(LoxToken::EqualEqual);
+                } else {
+                    self.tokens.push(LoxToken::Equal)
                 }
             },
             another => println!("another: {}", another)
