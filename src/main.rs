@@ -30,9 +30,13 @@ fn main() -> Result<(), Error> {
         Commands::Tokenize { file_path: Some(path) } => {
             let mut input = File::open(&path)?;
             let mut scanner = Scanner::new(&mut input);
-            let scanned = scanner.scan_tokens();
+            let (tokens, errors) = scanner.scan_tokens();
 
-            for token in scanned {
+            for error in errors {
+                eprintln!("{error}")
+            }
+
+            for token in tokens {
                 println!("{}", token.to_string());
             }
         },
