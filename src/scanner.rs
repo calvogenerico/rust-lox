@@ -28,6 +28,8 @@ pub enum LoxToken {
     BangEqual,
     Equal,
     EqualEqual,
+    Greater,
+    GreaterEqual,
 
     Eof,
 }
@@ -50,6 +52,8 @@ impl LoxToken {
             LoxToken::BangEqual => "BANG_EQUAL ! null",
             LoxToken::Equal => "EQUAL = null",
             LoxToken::EqualEqual => "EQUAL_EQUAL == null",
+            LoxToken::Greater => "GREATER > null",
+            LoxToken::GreaterEqual => "GREATER_EQUAL >= null",
             LoxToken::Eof => "EOF null",
         }
     }
@@ -96,6 +100,7 @@ impl <'r, R: Read> Scanner<'r, R> {
             '*' => self.tokens.push(LoxToken::Star),
             '!' => self.scan_maybe_two_chars(LoxToken::Bang, LoxToken::BangEqual),
             '=' => self.scan_maybe_two_chars(LoxToken::Equal, LoxToken::EqualEqual),
+            '>' => self.scan_maybe_two_chars(LoxToken::Greater, LoxToken::GreaterEqual),
             _ => {}
         }
     }
@@ -104,7 +109,7 @@ impl <'r, R: Read> Scanner<'r, R> {
         if self.peeked.is_some() {
             return self.peeked.take()
         }
-        
+
         match self.input.next_char() {
             Ok(Char::Char(res)) => Some(res),
             _ => None
@@ -119,9 +124,10 @@ impl <'r, R: Read> Scanner<'r, R> {
 
     fn scan_maybe_two_chars(&mut self, token1: LoxToken, token2: LoxToken) {
         if self.peek_char().is_some_and(|c| c == '=') {
-            self.tokens.push(token2)
+            self.take_char();
+            self.tokens.push(token2);
         } else {
-            self.tokens.push(token1)
+            self.tokens.push(token1);
         }
     }
 }
