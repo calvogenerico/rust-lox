@@ -81,6 +81,7 @@ impl<'r, R: Read> Scanner<'r, R> {
             ' ' => {}
             '\n' => {}
             '\r' => {}
+            '\t' => {}
             a_char => {
                 if a_char.is_digit(10) {
                     self.scan_number(a_char);
