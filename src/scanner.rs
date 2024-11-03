@@ -38,7 +38,7 @@ impl<'r, R: Read> Scanner<'r, R> {
             input: Reader::new(read),
             tokens: vec![],
             peeked: None,
-            current_line: 0,
+            current_line: 1,
             errors: vec![],
         }
     }
@@ -502,7 +502,7 @@ mod tests {
         let (tokens, errors) = scan_program_with_errors("$");
 
         assert_eq!(tokens, vec![LoxToken::Eof]);
-        assert_eq!(errors, vec!["[Line 0] Error: Unexpected character: $"])
+        assert_eq!(errors, vec!["[Line 1] Error: Unexpected character: $"])
     }
 
 
@@ -511,6 +511,6 @@ mod tests {
         let (tokens, errors) = scan_program_with_errors("\n@");
 
         assert_eq!(tokens, vec![LoxToken::Eof]);
-        assert_eq!(errors, vec!["[Line 1] Error: Unexpected character: @"])
+        assert_eq!(errors, vec!["[Line 2] Error: Unexpected character: @"])
     }
 }
