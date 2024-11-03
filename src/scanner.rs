@@ -71,7 +71,7 @@ impl<'r, R: Read> Scanner<'r, R> {
             '-' => self.tokens.push(LoxToken::Minus),
             '+' => self.tokens.push(LoxToken::Plus),
             ';' => self.tokens.push(LoxToken::Semicolon),
-            '/' => self.tokens.push(LoxToken::Slash),
+            '/' => self.scan_slash_or_comment(),
             '*' => self.tokens.push(LoxToken::Star),
             '!' => self.scan_maybe_two_chars(LoxToken::Bang, LoxToken::BangEqual),
             '=' => self.scan_maybe_two_chars(LoxToken::Equal, LoxToken::EqualEqual),
@@ -90,6 +90,16 @@ impl<'r, R: Read> Scanner<'r, R> {
                     self.scan_unexpected_character(a_char);
                 }
             }
+        }
+    }
+
+    fn scan_slash_or_comment(&mut self) {
+        let next = self.peek_char();
+
+        if next.is_some_and(|n| n == '/') {
+            self.take_chars_until('\n');
+        } else {
+            self.tokens.push(LoxToken::Slash);
         }
     }
 
@@ -512,5 +522,23 @@ mod tests {
 
         assert_eq!(tokens, vec![LoxToken::Eof]);
         assert_eq!(errors, vec!["[line 2] Error: Unexpected character: @"])
+    }
+
+    #[test]
+    fn only_one_commented_line_produce_nothing() {
+        let tokens = scan_program_clean("// this is a comment");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
+
+    #[test]
+    fn comments_can_include_unknown_characters() {
+        let tokens = scan_program_clean("// $@#");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
+
+    #[test]
+    fn comments_end_at_the_end_if_the_line() {
+        let tokens = scan_program_clean("(// $@#\n)");
+        assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::RightParen, LoxToken::Eof]);
     }
 }
