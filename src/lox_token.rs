@@ -24,7 +24,7 @@ pub enum LoxToken {
     LessEqual,
 
     // Literals
-    Numeric(f64),
+    Number(f64),
     String(String),
     Identifier(String),
 
@@ -71,8 +71,8 @@ impl LoxToken {
             LoxToken::GreaterEqual => "GREATER_EQUAL >= null".to_string(),
             LoxToken::Less => "LESS < null".to_string(),
             LoxToken::LessEqual => "LESS_EQUAL <= null".to_string(),
-            LoxToken::Numeric(value) => format!("IDENTIFIER {value} {value}"),
-            LoxToken::String(value) => format!("IDENTIFIER \"{value}\" {value}"),
+            LoxToken::Number(value) => format!("NUMBER {value} {value}"),
+            LoxToken::String(value) => format!("STRING \"{value}\" {value}"),
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
             LoxToken::And => "AND and null".to_string(),
             LoxToken::Class => "CLASS class null".to_string(),
@@ -116,5 +116,15 @@ mod tests {
     #[test]
     fn less_equal_to_string() {
         assert_eq!(&LoxToken::LessEqual.to_string(), "LESS_EQUAL <= null")
+    }
+
+    #[test]
+    fn identifier_to_string() {
+        assert_eq!(&LoxToken::Identifier("foo".to_string()).to_string(), "IDENTIFIER foo null")
+    }
+
+    #[test]
+    fn string_to_string() {
+        assert_eq!(&LoxToken::String("foo".to_string()).to_string(), "STRING \"foo\" foo")
     }
 }

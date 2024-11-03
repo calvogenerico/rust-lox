@@ -130,7 +130,7 @@ impl<'r, R: Read> Scanner<'r, R> {
             self.take_following_digits(&mut buf);
         }
 
-        self.tokens.push(LoxToken::Numeric(buf.parse().unwrap()));
+        self.tokens.push(LoxToken::Number(buf.parse().unwrap()));
     }
 
     fn take_following_digits(&mut self, buf: &mut String) {
@@ -335,32 +335,32 @@ mod tests {
     #[test]
     fn only_number_one_returns_digit_1() {
         let tokens = scan_program_clean("1");
-        assert_eq!(tokens, vec![LoxToken::Numeric(1.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number(1.0), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_one_returns_digit_99() {
         let tokens = scan_program_clean("99");
-        assert_eq!(tokens, vec![LoxToken::Numeric(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number(99.0), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_1_one_returns_digit_99_dot_1() {
         let tokens = scan_program_clean("99.1");
-        assert_eq!(tokens, vec![LoxToken::Numeric(99.1), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number(99.1), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_returns_digit_99_dot_0() {
         let tokens = scan_program_clean("99.");
-        assert_eq!(tokens, vec![LoxToken::Numeric(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number(99.0), LoxToken::Eof]);
     }
 
 
     #[test]
     fn dot_nine_nine_returns_digit_0_dot_99() {
         let tokens = scan_program_clean(".99");
-        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Numeric(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Number(99.0), LoxToken::Eof]);
     }
 
     #[test]
