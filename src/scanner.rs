@@ -511,6 +511,6 @@ mod tests {
         let (tokens, errors) = scan_program_with_errors("\n@");
 
         assert_eq!(tokens, vec![LoxToken::Eof]);
-        assert_eq!(errors, vec!["[Line 2] Error: Unexpected character: @"])
+        assert_eq!(errors, vec!["[line 2] Error: Unexpected character: @"])
     }
 }
