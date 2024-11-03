@@ -126,15 +126,15 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
 
     fn scan_number(&mut self, a_char: char) {
-        let mut buf = String::from(a_char);
-        self.take_following_digits(&mut buf);
+        let mut numerical_str = String::from(a_char);
+        self.take_following_digits(&mut numerical_str);
 
         if self.peek_char().is_some_and(|p| p == '.') {
-            buf.push(self.take_char().unwrap());
-            self.take_following_digits(&mut buf);
+            numerical_str.push(self.take_char().unwrap());
+            self.take_following_digits(&mut numerical_str);
         }
 
-        self.tokens.push(LoxToken::Number(buf.parse().unwrap()));
+        self.tokens.push(LoxToken::Number(numerical_str));
     }
 
     fn take_following_digits(&mut self, buf: &mut String) {
@@ -339,32 +339,32 @@ mod tests {
     #[test]
     fn only_number_one_returns_digit_1() {
         let tokens = scan_program_clean("1");
-        assert_eq!(tokens, vec![LoxToken::Number(1.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number("1".to_string()), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_one_returns_digit_99() {
         let tokens = scan_program_clean("99");
-        assert_eq!(tokens, vec![LoxToken::Number(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number("99".to_string()), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_1_one_returns_digit_99_dot_1() {
         let tokens = scan_program_clean("99.1");
-        assert_eq!(tokens, vec![LoxToken::Number(99.1), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number("99.1".to_string()), LoxToken::Eof]);
     }
 
     #[test]
     fn nine_nine_dot_returns_digit_99_dot_0() {
         let tokens = scan_program_clean("99.");
-        assert_eq!(tokens, vec![LoxToken::Number(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Number("99.".to_string()), LoxToken::Eof]);
     }
 
 
     #[test]
     fn dot_nine_nine_returns_digit_0_dot_99() {
         let tokens = scan_program_clean(".99");
-        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Number(99.0), LoxToken::Eof]);
+        assert_eq!(tokens, vec![LoxToken::Dot, LoxToken::Number("99".to_string()), LoxToken::Eof]);
     }
 
     #[test]

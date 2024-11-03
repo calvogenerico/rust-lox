@@ -24,7 +24,7 @@ pub enum LoxToken {
     LessEqual,
 
     // Literals
-    Number(f64),
+    Number(String),
     String(String),
     Identifier(String),
 
@@ -71,7 +71,7 @@ impl LoxToken {
             LoxToken::GreaterEqual => "GREATER_EQUAL >= null".to_string(),
             LoxToken::Less => "LESS < null".to_string(),
             LoxToken::LessEqual => "LESS_EQUAL <= null".to_string(),
-            LoxToken::Number(value) => format!("NUMBER {value} {:?}", value),
+            LoxToken::Number(value) => format!("NUMBER {value} {:?}", value.parse::<f64>().unwrap()),
             LoxToken::String(value) => format!("STRING \"{value}\" {value}"),
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
             LoxToken::And => "AND and null".to_string(),
@@ -130,11 +130,21 @@ mod tests {
 
     #[test]
     fn number_to_string() {
-        assert_eq!(&LoxToken::Number(47.0).to_string(), "NUMBER 47 47.0")
+        assert_eq!(&LoxToken::Number("47.0".to_string()).to_string(), "NUMBER 47.0 47.0")
     }
 
     #[test]
-    fn number_to_string2() {
-        assert_eq!(&LoxToken::Number(47.11).to_string(), "NUMBER 47.11 47.11")
+    fn number_to_string_integers() {
+        assert_eq!(&LoxToken::Number("47".to_string()).to_string(), "NUMBER 47 47.0")
+    }
+
+    #[test]
+    fn number_to_2_decimals() {
+        assert_eq!(&LoxToken::Number("47.11".to_string()).to_string(), "NUMBER 47.11 47.11")
+    }
+
+    #[test]
+    fn number_to_string_ending_with_dot() {
+        assert_eq!(&LoxToken::Number("47.".to_string()).to_string(), "NUMBER 47. 47.0")
     }
 }
