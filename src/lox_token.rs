@@ -64,7 +64,7 @@ impl LoxToken {
             LoxToken::Slash => "SLASH / null".to_string(),
             LoxToken::Star => "STAR * null".to_string(),
             LoxToken::Bang => "BANG ! null".to_string(),
-            LoxToken::BangEqual => "BANG_EQUAL ! null".to_string(),
+            LoxToken::BangEqual => "BANG_EQUAL != null".to_string(),
             LoxToken::Equal => "EQUAL = null".to_string(),
             LoxToken::EqualEqual => "EQUAL_EQUAL == null".to_string(),
             LoxToken::Greater => "GREATER > null".to_string(),
@@ -101,5 +101,10 @@ mod tests {
     #[test]
     fn eof_to_string() {
         assert_eq!(&LoxToken::Eof.to_string(), "EOF  null")
+    }
+
+    #[test]
+    fn bang_equal_to_string() {
+        assert_eq!(&LoxToken::BangEqual.to_string(), "BANG_EQUAL != null")
     }
 }
