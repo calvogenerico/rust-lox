@@ -8,6 +8,27 @@ pub struct Scanner<'r, R: Read> {
     peeked: Option<char>,
 }
 
+fn reserved_words(input: &str) -> Option<LoxToken> {
+    match input {
+        "and" => Some(LoxToken::And),
+        "class" => Some(LoxToken::Class),
+        "else" => Some(LoxToken::Else),
+        "false" => Some(LoxToken::False),
+        "fun" => Some(LoxToken::Fun),
+        "for" => Some(LoxToken::For),
+        "if" => Some(LoxToken::If),
+        "nil" => Some(LoxToken::Nil),
+        "or" => Some(LoxToken::Or),
+        "print" => Some(LoxToken::Print),
+        "return" => Some(LoxToken::Return),
+        "super" => Some(LoxToken::Super),
+        "this" => Some(LoxToken::This),
+        "true" => Some(LoxToken::True),
+        "var" => Some(LoxToken::Var),
+        "while" => Some(LoxToken::While),
+        _ => None
+    }
+}
 
 impl<'r, R: Read> Scanner<'r, R> {
     pub fn new(read: &'r mut R) -> Scanner<'r, R> {
@@ -71,7 +92,8 @@ impl<'r, R: Read> Scanner<'r, R> {
     fn scan_identifier(&mut self, a_char: char) {
         let mut buf = String::from(a_char);
         self.take_following_alphanumeric(&mut buf);
-        self.tokens.push(LoxToken::Identifier(buf))
+        let token = reserved_words(&buf).unwrap_or(LoxToken::Identifier(buf));
+        self.tokens.push(token);
     }
 
     fn scan_string(&mut self) {
@@ -347,5 +369,101 @@ mod tests {
     fn identifier_test() {
         let tokens = scan_program("holu");
         assert_eq!(tokens, vec![LoxToken::Identifier("holu".to_string()), LoxToken::Eof]);
+    }
+
+    #[test]
+    fn and_test() {
+        let tokens = scan_program("and");
+        assert_eq!(tokens, vec![LoxToken::And, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn class_test() {
+        let tokens = scan_program("class");
+        assert_eq!(tokens, vec![LoxToken::Class, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn else_test() {
+        let tokens = scan_program("else");
+        assert_eq!(tokens, vec![LoxToken::Else, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn false_test() {
+        let tokens = scan_program("false");
+        assert_eq!(tokens, vec![LoxToken::False, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn fun_test() {
+        let tokens = scan_program("fun");
+        assert_eq!(tokens, vec![LoxToken::Fun, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn for_test() {
+        let tokens = scan_program("for");
+        assert_eq!(tokens, vec![LoxToken::For, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn if_test() {
+        let tokens = scan_program("if");
+        assert_eq!(tokens, vec![LoxToken::If, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn nil_test() {
+        let tokens = scan_program("nil");
+        assert_eq!(tokens, vec![LoxToken::Nil, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn or_test() {
+        let tokens = scan_program("or");
+        assert_eq!(tokens, vec![LoxToken::Or, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn print_test() {
+        let tokens = scan_program("print");
+        assert_eq!(tokens, vec![LoxToken::Print, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn return_test() {
+        let tokens = scan_program("return");
+        assert_eq!(tokens, vec![LoxToken::Return, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn super_test() {
+        let tokens = scan_program("super");
+        assert_eq!(tokens, vec![LoxToken::Super, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn this_test() {
+        let tokens = scan_program("this");
+        assert_eq!(tokens, vec![LoxToken::This, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn true_test() {
+        let tokens = scan_program("true");
+        assert_eq!(tokens, vec![LoxToken::True, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn var_test() {
+        let tokens = scan_program("var");
+        assert_eq!(tokens, vec![LoxToken::Var, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn while_test() {
+        let tokens = scan_program("while");
+        assert_eq!(tokens, vec![LoxToken::While, LoxToken::Eof]);
     }
 }

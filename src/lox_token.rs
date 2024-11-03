@@ -28,7 +28,25 @@ pub enum LoxToken {
     String(String),
     Identifier(String),
 
+    // Keywords
+    And,
+    Class,
+
     Eof,
+    Else,
+    False,
+    Fun,
+    For,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
 }
 
 impl LoxToken {
@@ -56,7 +74,23 @@ impl LoxToken {
             LoxToken::Numeric(value) => format!("IDENTIFIER {value} {value}"),
             LoxToken::String(value) => format!("IDENTIFIER \"{value}\" {value}"),
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
+            LoxToken::And => "AND and null".to_string(),
+            LoxToken::Class => "CLASS class null".to_string(),
             LoxToken::Eof => "EOF null".to_string(),
+            LoxToken::Else => "ELSE Else null".to_string(),
+            LoxToken::False => "FALSE False null".to_string(),
+            LoxToken::Fun => "FUN Fun null".to_string(),
+            LoxToken::For => "FOR For null".to_string(),
+            LoxToken::If => "IF If null".to_string(),
+            LoxToken::Nil => "NIL Nil null".to_string(),
+            LoxToken::Or => "OR Or null".to_string(),
+            LoxToken::Print => "PRINT Print null".to_string(),
+            LoxToken::Return => "RETURN Return null".to_string(),
+            LoxToken::Super => "SUPER Super null".to_string(),
+            LoxToken::This => "THIS This null".to_string(),
+            LoxToken::True => "TRUE True null".to_string(),
+            LoxToken::Var => "VAR Var null".to_string(),
+            LoxToken::While => "WHILE While null".to_string(),
         }
     }
 }
