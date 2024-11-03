@@ -88,7 +88,7 @@ impl LoxToken {
             LoxToken::Super => "SUPER super null".to_string(),
             LoxToken::This => "THIS this null".to_string(),
             LoxToken::True => "TRUE true null".to_string(),
-            LoxToken::Var => "VAR Var null".to_string(),
+            LoxToken::Var => "VAR var null".to_string(),
             LoxToken::While => "WHILE while null".to_string(),
             LoxToken::Eof => "EOF  null".to_string(), // The double space is on purpose. The representation is empty.
         }
@@ -156,5 +156,10 @@ mod tests {
     #[test]
     fn or_to_string() {
         assert_eq!(&LoxToken::Or.to_string(), "OR or null")
+    }
+
+    #[test]
+    fn var_to_string() {
+        assert_eq!(&LoxToken::Var.to_string(), "VAR var null")
     }
 }
