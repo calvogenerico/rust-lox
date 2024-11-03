@@ -1,8 +1,6 @@
 mod scanner;
 
-use std::env;
 use std::fs::File;
-use std::io::{self, Write};
 use clap::{Error, Parser, Subcommand};
 use crate::scanner::Scanner;
 
