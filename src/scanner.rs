@@ -94,7 +94,7 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
 
     fn scan_unexpected_character(&mut self, a_char: char) {
-        let error = format!("[Line {}] Error: Unexpected character: {}", self.current_line, a_char);
+        let error = format!("[line {}] Error: Unexpected character: {}", self.current_line, a_char);
         self.errors.push(error);
     }
 
@@ -502,7 +502,7 @@ mod tests {
         let (tokens, errors) = scan_program_with_errors("$");
 
         assert_eq!(tokens, vec![LoxToken::Eof]);
-        assert_eq!(errors, vec!["[Line 1] Error: Unexpected character: $"])
+        assert_eq!(errors, vec!["[line 1] Error: Unexpected character: $"])
     }
 
 
