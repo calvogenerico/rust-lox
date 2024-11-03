@@ -23,32 +23,36 @@ pub enum LoxToken {
     Less,
     LessEqual,
 
+    // Literals
+    Numeric(f64),
+
     Eof,
 }
 
 impl LoxToken {
-    pub fn to_str(&self) -> &str {
+    pub fn to_string(&self) -> String {
         match self {
-            LoxToken::LeftParen => "LEFT_PAREN ( null",
-            LoxToken::RightParen => "RIGHT_PAREN ) null",
-            LoxToken::LeftBrace => "LEFT_BRACE { null",
-            LoxToken::RightBrace => "RIGHT_BRACE } null",
-            LoxToken::Comma => "COMMA , null",
-            LoxToken::Dot => "DOT . null",
-            LoxToken::Minus => "MINUS - null",
-            LoxToken::Plus => "PLUS + null",
-            LoxToken::Semicolon => "SEMICOLON ; null",
-            LoxToken::Slash => "SLASH / null",
-            LoxToken::Star => "STAR * null",
-            LoxToken::Bang => "BANG ! null",
-            LoxToken::BangEqual => "BANG_EQUAL ! null",
-            LoxToken::Equal => "EQUAL = null",
-            LoxToken::EqualEqual => "EQUAL_EQUAL == null",
-            LoxToken::Greater => "GREATER > null",
-            LoxToken::GreaterEqual => "GREATER_EQUAL >= null",
-            LoxToken::Less => "LESS > null",
-            LoxToken::LessEqual => "LESS_EQUAL >= null",
-            LoxToken::Eof => "EOF null",
+            LoxToken::LeftParen => "LEFT_PAREN ( null".to_string(),
+            LoxToken::RightParen => "RIGHT_PAREN ) null".to_string(),
+            LoxToken::LeftBrace => "LEFT_BRACE { null".to_string(),
+            LoxToken::RightBrace => "RIGHT_BRACE } null".to_string(),
+            LoxToken::Comma => "COMMA , null".to_string(),
+            LoxToken::Dot => "DOT . null".to_string(),
+            LoxToken::Minus => "MINUS - null".to_string(),
+            LoxToken::Plus => "PLUS + null".to_string(),
+            LoxToken::Semicolon => "SEMICOLON ; null".to_string(),
+            LoxToken::Slash => "SLASH / null".to_string(),
+            LoxToken::Star => "STAR * null".to_string(),
+            LoxToken::Bang => "BANG ! null".to_string(),
+            LoxToken::BangEqual => "BANG_EQUAL ! null".to_string(),
+            LoxToken::Equal => "EQUAL = null".to_string(),
+            LoxToken::EqualEqual => "EQUAL_EQUAL == null".to_string(),
+            LoxToken::Greater => "GREATER > null".to_string(),
+            LoxToken::GreaterEqual => "GREATER_EQUAL >= null".to_string(),
+            LoxToken::Less => "LESS > null".to_string(),
+            LoxToken::LessEqual => "LESS_EQUAL >= null".to_string(),
+            LoxToken::Numeric(value) => format!("IDENTIFIER {} null", value),
+            LoxToken::Eof => "EOF null".to_string(),
         }
     }
 }

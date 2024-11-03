@@ -52,7 +52,32 @@ impl <'r, R: Read> Scanner<'r, R> {
             '=' => self.scan_maybe_two_chars(LoxToken::Equal, LoxToken::EqualEqual),
             '>' => self.scan_maybe_two_chars(LoxToken::Greater, LoxToken::GreaterEqual),
             '<' => self.scan_maybe_two_chars(LoxToken::Less, LoxToken::LessEqual),
-            _ => {}
+            _ => self.scan_number(a_char)
+        }
+    }
+
+    fn scan_number(&mut self, a_char: char) {
+        let mut buf = String::from(a_char);
+        self.take_following_digits(&mut buf);
+
+        if self.peek_char().is_some_and(|p| p == '.') {
+            buf.push(self.take_char().unwrap());
+            self.take_following_digits(&mut buf);
+        }
+
+        self.tokens.push(LoxToken::Numeric(buf.parse().unwrap()));
+    }
+
+    fn take_following_digits(&mut self, buf: &mut String) {
+        loop {
+            let peeked = self.peek_char();
+            let maybe_digit = peeked.filter(|a| a.is_digit(10));
+            if let Some(digit) = maybe_digit {
+                self.take_char();
+                buf.push(digit)
+            } else {
+                break
+            }
         }
     }
 
@@ -68,6 +93,10 @@ impl <'r, R: Read> Scanner<'r, R> {
     }
 
     fn peek_char(&mut self) -> Option<char> {
+        if self.peeked.is_some() {
+            return self.peeked.clone()
+        }
+
         let next_char = self.take_char();
         self.peeked.replace(next_char?);
         self.peeked.clone()
@@ -195,5 +224,36 @@ mod tests{
     fn bang_bang_equal_gets_bang_bang_equal() {
         let tokens = scan_program("!!=");
         assert_eq!(tokens, vec![ LoxToken::Bang, LoxToken::BangEqual, LoxToken::Eof ]);
+    }
+
+    #[test]
+    fn only_number_one_returns_digit_1() {
+        let tokens = scan_program("1");
+        assert_eq!(tokens, vec![ LoxToken::Numeric(1.0), LoxToken::Eof ]);
+    }
+
+    #[test]
+    fn nine_nine_one_returns_digit_99() {
+        let tokens = scan_program("99");
+        assert_eq!(tokens, vec![ LoxToken::Numeric(99.0), LoxToken::Eof ]);
+    }
+
+    #[test]
+    fn nine_nine_dot_1_one_returns_digit_99_dot_1() {
+        let tokens = scan_program("99.1");
+        assert_eq!(tokens, vec![ LoxToken::Numeric(99.1), LoxToken::Eof ]);
+    }
+
+    #[test]
+    fn nine_nine_dot_returns_digit_99_dot_0() {
+        let tokens = scan_program("99.");
+        assert_eq!(tokens, vec![ LoxToken::Numeric(99.0), LoxToken::Eof ]);
+    }
+
+
+    #[test]
+    fn dot_nine_nine_returns_digit_0_dot_99() {
+        let tokens = scan_program(".99");
+        assert_eq!(tokens, vec![ LoxToken::Dot, LoxToken::Numeric(99.0), LoxToken::Eof ]);
     }
 }

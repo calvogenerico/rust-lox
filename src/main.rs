@@ -33,7 +33,7 @@ fn main() -> Result<(), Error> {
             let scanned = scanner.scan_tokens();
 
             for token in scanned {
-                println!("{}", token.to_str());
+                println!("{}", token.to_string());
             }
         },
         _ => panic!("error")
