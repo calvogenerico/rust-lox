@@ -117,8 +117,12 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
 
     fn scan_string(&mut self) {
-        let buf = self.take_chars_until('"');
-        self.tokens.push(LoxToken::String(buf.unwrap()));
+        let start = self.current_line;
+        if let Some(content) = self.take_chars_until('"') {
+            self.tokens.push(LoxToken::String(content));
+        } else {
+            self.errors.push(format!("[Line {start}] Error: Unterminated string."));
+        }
     }
 
     fn scan_number(&mut self, a_char: char) {
@@ -541,5 +545,12 @@ mod tests {
     fn comments_end_at_the_end_if_the_line() {
         let tokens = scan_program_clean("(// $@#\n)");
         assert_eq!(tokens, vec![LoxToken::LeftParen, LoxToken::RightParen, LoxToken::Eof]);
+    }
+
+    #[test]
+    fn string_not_terminated_produce_an_error() {
+        let (tokens, errors) = scan_program_with_errors("\"bar\" \"unterminated");
+        assert_eq!(tokens, vec![LoxToken::String("bar".to_string()), LoxToken::Eof]);
+        assert_eq!(errors, vec!["[Line 1] Error: Unterminated string."]);
     }
 }
