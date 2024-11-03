@@ -82,7 +82,7 @@ impl LoxToken {
             LoxToken::For => "FOR for null".to_string(),
             LoxToken::If => "IF if null".to_string(),
             LoxToken::Nil => "NIL nil null".to_string(),
-            LoxToken::Or => "OR Or null".to_string(),
+            LoxToken::Or => "OR or null".to_string(),
             LoxToken::Print => "PRINT print null".to_string(),
             LoxToken::Return => "RETURN return null".to_string(),
             LoxToken::Super => "SUPER super null".to_string(),
@@ -151,5 +151,10 @@ mod tests {
     #[test]
     fn super_to_string() {
         assert_eq!(&LoxToken::Super.to_string(), "SUPER super null")
+    }
+
+    #[test]
+    fn or_to_string() {
+        assert_eq!(&LoxToken::Or.to_string(), "OR or null")
     }
 }
