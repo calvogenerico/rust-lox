@@ -76,21 +76,21 @@ impl LoxToken {
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
             LoxToken::And => "AND and null".to_string(),
             LoxToken::Class => "CLASS class null".to_string(),
-            LoxToken::Else => "ELSE Else null".to_string(),
-            LoxToken::False => "FALSE False null".to_string(),
-            LoxToken::Fun => "FUN Fun null".to_string(),
-            LoxToken::For => "FOR For null".to_string(),
-            LoxToken::If => "IF If null".to_string(),
-            LoxToken::Nil => "NIL Nil null".to_string(),
+            LoxToken::Else => "ELSE else null".to_string(),
+            LoxToken::False => "FALSE false null".to_string(),
+            LoxToken::Fun => "FUN fun null".to_string(),
+            LoxToken::For => "FOR for null".to_string(),
+            LoxToken::If => "IF if null".to_string(),
+            LoxToken::Nil => "NIL nil null".to_string(),
             LoxToken::Or => "OR Or null".to_string(),
-            LoxToken::Print => "PRINT Print null".to_string(),
-            LoxToken::Return => "RETURN Return null".to_string(),
-            LoxToken::Super => "SUPER Super null".to_string(),
-            LoxToken::This => "THIS This null".to_string(),
-            LoxToken::True => "TRUE True null".to_string(),
+            LoxToken::Print => "PRINT print null".to_string(),
+            LoxToken::Return => "RETURN return null".to_string(),
+            LoxToken::Super => "SUPER super null".to_string(),
+            LoxToken::This => "THIS this null".to_string(),
+            LoxToken::True => "TRUE true null".to_string(),
             LoxToken::Var => "VAR Var null".to_string(),
-            LoxToken::While => "WHILE While null".to_string(),
-            LoxToken::Eof => "EOF  null".to_string(),
+            LoxToken::While => "WHILE while null".to_string(),
+            LoxToken::Eof => "EOF  null".to_string(), // The double space is on purpose. The representation is empty.
         }
     }
 }
@@ -146,5 +146,10 @@ mod tests {
     #[test]
     fn number_to_string_ending_with_dot() {
         assert_eq!(&LoxToken::Number("47.".to_string()).to_string(), "NUMBER 47. 47.0")
+    }
+
+    #[test]
+    fn super_to_string() {
+        assert_eq!(&LoxToken::Super.to_string(), "SUPER super null")
     }
 }
