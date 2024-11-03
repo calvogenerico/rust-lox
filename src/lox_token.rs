@@ -76,7 +76,6 @@ impl LoxToken {
             LoxToken::Identifier(value) => format!("IDENTIFIER {value} null"),
             LoxToken::And => "AND and null".to_string(),
             LoxToken::Class => "CLASS class null".to_string(),
-            LoxToken::Eof => "EOF null".to_string(),
             LoxToken::Else => "ELSE Else null".to_string(),
             LoxToken::False => "FALSE False null".to_string(),
             LoxToken::Fun => "FUN Fun null".to_string(),
@@ -91,6 +90,16 @@ impl LoxToken {
             LoxToken::True => "TRUE True null".to_string(),
             LoxToken::Var => "VAR Var null".to_string(),
             LoxToken::While => "WHILE While null".to_string(),
+            LoxToken::Eof => "EOF  null".to_string(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn eof_to_string() {
+        assert_eq!(&LoxToken::Eof.to_string(), "EOF  null")
     }
 }

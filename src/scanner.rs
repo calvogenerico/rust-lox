@@ -466,4 +466,10 @@ mod tests {
         let tokens = scan_program("while");
         assert_eq!(tokens, vec![LoxToken::While, LoxToken::Eof]);
     }
+
+    #[test]
+    fn eof_test() {
+        let tokens = scan_program("");
+        assert_eq!(tokens, vec![LoxToken::Eof]);
+    }
 }
