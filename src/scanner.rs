@@ -58,12 +58,20 @@ impl<'r, R: Read> Scanner<'r, R> {
             '\r' => {}
             a_char => {
                 if a_char.is_digit(10) {
-                    self.scan_number(a_char)
+                    self.scan_number(a_char);
+                } else if a_char.is_alphabetic() {
+                    self.scan_identifier(a_char);
                 } else {
                     panic!("not implemented")
                 }
             }
         }
+    }
+
+    fn scan_identifier(&mut self, a_char: char) {
+        let mut buf = String::from(a_char);
+        self.take_following_alphanumeric(&mut buf);
+        self.tokens.push(LoxToken::Identifier(buf))
     }
 
     fn scan_string(&mut self) {
@@ -96,12 +104,25 @@ impl<'r, R: Read> Scanner<'r, R> {
         }
     }
 
+    fn take_following_alphanumeric(&mut self, buf: &mut String) {
+        loop {
+            let peeked = self.peek_char();
+            let maybe_digit = peeked.filter(|a| a.is_alphanumeric());
+            if let Some(digit) = maybe_digit {
+                self.take_char();
+                buf.push(digit)
+            } else {
+                break;
+            }
+        }
+    }
+
     fn take_chars_until(&mut self, limit: char) -> Option<String> {
         let mut buf = String::new();
         loop {
             let taken = self.take_char()?;
             if taken == limit {
-                break
+                break;
             } else {
                 buf.push(taken)
             }
@@ -320,5 +341,11 @@ mod tests {
         let string_content = "(){}\\+-.,;: \n \r 123 asd ";
         let tokens = scan_program(&format!("\"{}\"", string_content));
         assert_eq!(tokens, vec![LoxToken::String(string_content.to_string()), LoxToken::Eof]);
+    }
+
+    #[test]
+    fn identifier_test() {
+        let tokens = scan_program("holu");
+        assert_eq!(tokens, vec![LoxToken::Identifier("holu".to_string()), LoxToken::Eof]);
     }
 }
