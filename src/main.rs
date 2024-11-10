@@ -1,5 +1,6 @@
 mod scanner;
-mod lox_token;
+mod token_kind;
+mod token;
 
 use std::fs::File;
 use std::process::ExitCode;
