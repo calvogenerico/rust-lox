@@ -1,11 +1,11 @@
-mod scanner;
-mod token_kind;
-mod token;
+mod scan;
+mod parse;
 
 use std::fs::File;
 use std::process::ExitCode;
 use clap::{Error, Parser, Subcommand};
-use crate::scanner::Scanner;
+
+use scan::scanner::Scanner;
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "git")]
@@ -18,12 +18,20 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-  /// Clones repos
   #[command(arg_required_else_help = true)]
   Tokenize {
     file_path: Option<String>,
-  }
+  },
+
+  #[command(arg_required_else_help = true)]
+  Parse {
+    file_path: Option<String>,
+  },
 }
+
+// fn run() -> Result<ExitCode, Error> {
+//
+// }
 
 fn main() -> Result<ExitCode, Error> {
   let args = Cli::parse();
@@ -31,7 +39,7 @@ fn main() -> Result<ExitCode, Error> {
   let code = match args.command {
     Commands::Tokenize { file_path: Some(path) } => {
       let mut input = File::open(&path)?;
-      let mut scanner = Scanner::new(&mut input);
+      let scanner = Scanner::new(&mut input);
       let (tokens, errors) = scanner.scan_tokens();
 
       for error in &errors {
@@ -47,6 +55,14 @@ fn main() -> Result<ExitCode, Error> {
       } else {
         ExitCode::from(65)
       }
+    },
+    Commands::Parse { file_path: Some(_path) } => {
+      // let mut input = File::open(&path)?;
+      // let mut scanner = Scanner::new(&mut input);
+      // let (tokens, _errors) = scanner.scan_tokens();
+
+
+      ExitCode::from(0)
     }
     _ => ExitCode::from(1)
   };

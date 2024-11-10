@@ -50,7 +50,51 @@ pub enum TokenKind {
 }
 
 impl TokenKind {
-    pub fn to_string(&self) -> String {
+    pub fn symbol(&self) -> String {
+      match self {
+        TokenKind::LeftParen => "(".to_string(),
+        TokenKind::RightParen => ")".to_string(),
+        TokenKind::LeftBrace => "{".to_string(),
+        TokenKind::RightBrace => "}".to_string(),
+        TokenKind::Comma => ",".to_string(),
+        TokenKind::Dot => ".".to_string(),
+        TokenKind::Minus => "-".to_string(),
+        TokenKind::Plus => "+".to_string(),
+        TokenKind::Semicolon => ";".to_string(),
+        TokenKind::Slash => "/".to_string(),
+        TokenKind::Star => "*".to_string(),
+        TokenKind::Bang => "!".to_string(),
+        TokenKind::BangEqual => "!=".to_string(),
+        TokenKind::Equal => "=".to_string(),
+        TokenKind::EqualEqual => "==".to_string(),
+        TokenKind::Greater => ">".to_string(),
+        TokenKind::GreaterEqual => ">=".to_string(),
+        TokenKind::Less => "<".to_string(),
+        TokenKind::LessEqual => "<=".to_string(),
+        TokenKind::Number(value) => value.to_string(),
+        TokenKind::String(value) => value.to_string(),
+        TokenKind::Identifier(value) => value.to_string(),
+        TokenKind::And => "and".to_string(),
+        TokenKind::Class => "class".to_string(),
+        TokenKind::Else => "else".to_string(),
+        TokenKind::False => "false".to_string(),
+        TokenKind::Fun => "fun".to_string(),
+        TokenKind::For => "for".to_string(),
+        TokenKind::If => "if".to_string(),
+        TokenKind::Nil => "nil".to_string(),
+        TokenKind::Or => "or".to_string(),
+        TokenKind::Print => "print".to_string(),
+        TokenKind::Return => "return".to_string(),
+        TokenKind::Super => "super".to_string(),
+        TokenKind::This => "this".to_string(),
+        TokenKind::True => "true".to_string(),
+        TokenKind::Var => "var".to_string(),
+        TokenKind::While => "while".to_string(),
+        TokenKind::Eof => "".to_string(), // The double space is on purpose. The representation is empty.
+      }
+    }
+
+    pub fn full_format(&self) -> String {
         match self {
             TokenKind::LeftParen => "LEFT_PAREN ( null".to_string(),
             TokenKind::RightParen => "RIGHT_PAREN ) null".to_string(),
@@ -100,66 +144,66 @@ mod tests {
     use super::*;
     #[test]
     fn eof_to_string() {
-        assert_eq!(&TokenKind::Eof.to_string(), "EOF  null")
+        assert_eq!(&TokenKind::Eof.full_format(), "EOF  null")
     }
 
     #[test]
     fn bang_equal_to_string() {
-        assert_eq!(&TokenKind::BangEqual.to_string(), "BANG_EQUAL != null")
+        assert_eq!(&TokenKind::BangEqual.full_format(), "BANG_EQUAL != null")
     }
 
     #[test]
     fn less_to_string() {
-        assert_eq!(&TokenKind::Less.to_string(), "LESS < null")
+        assert_eq!(&TokenKind::Less.full_format(), "LESS < null")
     }
 
     #[test]
     fn less_equal_to_string() {
-        assert_eq!(&TokenKind::LessEqual.to_string(), "LESS_EQUAL <= null")
+        assert_eq!(&TokenKind::LessEqual.full_format(), "LESS_EQUAL <= null")
     }
 
     #[test]
     fn identifier_to_string() {
-        assert_eq!(&TokenKind::Identifier("foo".to_string()).to_string(), "IDENTIFIER foo null")
+        assert_eq!(&TokenKind::Identifier("foo".to_string()).full_format(), "IDENTIFIER foo null")
     }
 
     #[test]
     fn string_to_string() {
-        assert_eq!(&TokenKind::String("foo".to_string()).to_string(), "STRING \"foo\" foo")
+        assert_eq!(&TokenKind::String("foo".to_string()).full_format(), "STRING \"foo\" foo")
     }
 
     #[test]
     fn number_to_string() {
-        assert_eq!(&TokenKind::Number("47.0".to_string()).to_string(), "NUMBER 47.0 47.0")
+        assert_eq!(&TokenKind::Number("47.0".to_string()).full_format(), "NUMBER 47.0 47.0")
     }
 
     #[test]
     fn number_to_string_integers() {
-        assert_eq!(&TokenKind::Number("47".to_string()).to_string(), "NUMBER 47 47.0")
+        assert_eq!(&TokenKind::Number("47".to_string()).full_format(), "NUMBER 47 47.0")
     }
 
     #[test]
     fn number_to_2_decimals() {
-        assert_eq!(&TokenKind::Number("47.11".to_string()).to_string(), "NUMBER 47.11 47.11")
+        assert_eq!(&TokenKind::Number("47.11".to_string()).full_format(), "NUMBER 47.11 47.11")
     }
 
     #[test]
     fn number_to_string_ending_with_dot() {
-        assert_eq!(&TokenKind::Number("47.".to_string()).to_string(), "NUMBER 47. 47.0")
+        assert_eq!(&TokenKind::Number("47.".to_string()).full_format(), "NUMBER 47. 47.0")
     }
 
     #[test]
     fn super_to_string() {
-        assert_eq!(&TokenKind::Super.to_string(), "SUPER super null")
+        assert_eq!(&TokenKind::Super.full_format(), "SUPER super null")
     }
 
     #[test]
     fn or_to_string() {
-        assert_eq!(&TokenKind::Or.to_string(), "OR or null")
+        assert_eq!(&TokenKind::Or.full_format(), "OR or null")
     }
 
     #[test]
     fn var_to_string() {
-        assert_eq!(&TokenKind::Var.to_string(), "VAR var null")
+        assert_eq!(&TokenKind::Var.full_format(), "VAR var null")
     }
 }

@@ -1,4 +1,4 @@
-use crate::token_kind::TokenKind;
+use crate::scan::token_kind::TokenKind;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
@@ -15,6 +15,10 @@ impl Token {
   }
 
   pub fn to_string(&self) -> String {
-    self.kind.to_string()
+    self.kind.full_format()
+  }
+
+  pub fn kind(&self) -> &TokenKind {
+    &self.kind
   }
 }

@@ -1,7 +1,7 @@
 use std::io::{Read};
 use utf8_read::{Char, Reader};
-use crate::token::Token;
-use crate::token_kind::TokenKind;
+use crate::scan::token::Token;
+use crate::scan::token_kind::TokenKind;
 
 pub struct Scanner<'r, R: Read> {
   input: Reader<&'r mut R>,
@@ -44,7 +44,7 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
   }
 
-  pub fn scan_tokens(&mut self) -> (Vec<Token>, Vec<String>) {
+  pub fn scan_tokens(mut self) -> (Vec<Token>, Vec<String>) {
     while !self.eof() {
       let next_char = self.take_char();
       if next_char.is_some() {
@@ -54,7 +54,7 @@ impl<'r, R: Read> Scanner<'r, R> {
 
     self.push_token_current_line(TokenKind::Eof);
 
-    (self.tokens.clone(), self.errors.clone())
+    (self.tokens, self.errors)
   }
 
   fn eof(&self) -> bool {
@@ -232,7 +232,7 @@ mod tests {
   fn scan_program_clean(code: &str) -> Vec<Token> {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
-    let mut scan = Scanner::new(&mut cursor);
+    let scan = Scanner::new(&mut cursor);
     let (tokens, errors) = scan.scan_tokens();
 
     assert_eq!(errors.len(), 0);
@@ -242,7 +242,7 @@ mod tests {
   fn scan_program_with_errors(code: &str) -> (Vec<Token>, Vec<String>) {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
-    let mut scan = Scanner::new(&mut cursor);
+    let scan = Scanner::new(&mut cursor);
     scan.scan_tokens()
   }
 
