@@ -1,7 +1,7 @@
 use crate::scan::token::Token;
 
-pub enum EnumExpr {
+pub enum Expr {
   LiteralNumber {value: f64},
   LiteralBool {value: bool},
-  Binary { left: Box<EnumExpr>, operator: Token, right: Box<EnumExpr> }
+  Binary { left: Box<Expr>, operator: Token, right: Box<Expr> }
 }

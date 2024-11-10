@@ -1,4 +1,4 @@
-use crate::parse::enum_expr::EnumExpr;
+use crate::parse::enum_expr::Expr;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
@@ -16,45 +16,45 @@ impl Parser {
     }
   }
 
-  pub fn parse(mut self) -> EnumExpr {
+  pub fn parse(mut self) -> Expr {
     self.expression().unwrap()
   }
 
-  fn expression(&mut self) -> Result<EnumExpr, String> {
+  fn expression(&mut self) -> Result<Expr, String> {
     self.equality()
   }
 
-  fn equality(&mut self) -> Result<EnumExpr, String> {
+  fn equality(&mut self) -> Result<Expr, String> {
     let left = self.comparison()?;
 
     if let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
       let right = self.comparison()?;
-      return Ok(EnumExpr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
+      return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
     }
 
     Ok(left)
   }
 
-  fn comparison(&mut self) -> Result<EnumExpr, String> {
+  fn comparison(&mut self) -> Result<Expr, String> {
     let left = self.literal()?;
 
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
     ) {
       let right = self.literal()?;
-      return Ok(EnumExpr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
+      return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
     }
 
     Ok(left)
   }
 
-  fn literal(&mut self) -> Result<EnumExpr, String> {
+  fn literal(&mut self) -> Result<Expr, String> {
     let maybe = self.next_token();
     let token = maybe.unwrap();
 
     let token = match token.kind() {
-      TokenKind::Number(repr) => EnumExpr::LiteralNumber { value: repr.parse().unwrap() },
-      TokenKind::True => EnumExpr::LiteralBool { value: true },
+      TokenKind::Number(repr) => Expr::LiteralNumber { value: repr.parse().unwrap() },
+      TokenKind::True => Expr::LiteralBool { value: true },
       _ => panic!("not implemented")
     };
 
