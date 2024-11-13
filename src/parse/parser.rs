@@ -78,7 +78,7 @@ impl LoxParser {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Minus, TokenKind::Bang]
     ) {
-      let expr = self.primary()?;
+      let expr = self.unary()?;
       return Ok(Expr::Unary { operator, right: Box::new(expr) });
     }
 
@@ -96,7 +96,7 @@ impl LoxParser {
       TokenKind::String(repr) => Expr::LiteralString { value: repr.to_string() },
       TokenKind::Nil => Expr::LiteralNil,
       TokenKind::LeftParen => {
-        let res = self.equality()?;
+        let res = self.expression()?;
         self.next_token().unwrap();
         Expr::Group { expression: Box::new(res) }
       }
@@ -407,6 +407,24 @@ mod tests {
     let representation = visitor.print(&res);
 
     assert_eq!(representation, "(+ nil (! false))")
+  }
+
+  #[test]
+  fn double_bang_test() {
+    let bang_token = Token::new(TokenKind::Bang, 1);
+    let false_token = Token::new(TokenKind::False, 1);
+
+    let parser = parser(vec![
+      bang_token.clone(),
+      bang_token,
+      false_token
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(! (! false))")
   }
 }
 
