@@ -89,16 +89,21 @@ impl Parser {
     let maybe = self.next_token();
     let token = maybe.unwrap();
 
-    let token = match token.kind() {
+    let expr = match token.kind() {
       TokenKind::Number(repr) => Expr::LiteralNumber { value: repr.parse().unwrap() },
       TokenKind::True => Expr::LiteralBool { value: true },
       TokenKind::False => Expr::LiteralBool { value: false },
       TokenKind::String(repr) => Expr::LiteralString { value: repr.to_string() },
       TokenKind::Nil => Expr::LiteralNil,
+      TokenKind::LeftParen => {
+        let res = self.equality()?;
+        self.next_token().unwrap();
+        Expr::Group { expression: Box::new(res) }
+      }
       _ => panic!("not implemented")
     };
 
-    Ok(token)
+    Ok(expr)
   }
 
 
@@ -339,5 +344,47 @@ mod tests {
     assert_eq!(print.print(&Parser::new(vec![true_token]).parse()), "true");
     assert_eq!(print.print(&Parser::new(vec![false_token]).parse()), "false");
     assert_eq!(print.print(&Parser::new(vec![string_token]).parse()), "\"some string\"");
+  }
+
+  #[test]
+  fn simple_grouping() {
+    let left_paren = Token::new(TokenKind::LeftParen, 1);
+    let right_paren = Token::new(TokenKind::RightParen, 1);
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+
+    let parser = parser(vec![
+      left_paren,
+      one_token,
+      right_paren
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(group 1)")
+  }
+
+  #[test]
+  fn can_combine_groups_with_operations() {
+    let left_paren = Token::new(TokenKind::LeftParen, 1);
+    let right_paren = Token::new(TokenKind::RightParen, 1);
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
+    let plus_token = Token::new(TokenKind::Plus, 1);
+
+    let parser = parser(vec![
+      left_paren,
+      one_token,
+      plus_token,
+      two_token,
+      right_paren
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(group (+ 1 2))")
   }
 }

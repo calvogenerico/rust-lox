@@ -15,7 +15,8 @@ impl PrintAst {
       Expr::LiteralNil => "nil".to_string(),
       Expr::Unary { operator, right } => format!("({}{})", operator.kind().symbol(), self.print(right)),
       Expr::Binary { left, operator, right } =>
-        format!("({} {} {})", operator.kind().symbol(), self.print(left), self.print(right))
+        format!("({} {} {})", operator.kind().symbol(), self.print(left), self.print(right)),
+      Expr::Group { expression } => format!("(group {})", self.print(expression))
     }
   }
 }
