@@ -176,7 +176,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(== 1 2)");
+    assert_eq!(representation, "(== 1.0 2.0)");
   }
 
   #[test]
@@ -191,7 +191,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(!= 1 2)");
+    assert_eq!(representation, "(!= 1.0 2.0)");
   }
 
   #[test]
@@ -213,7 +213,7 @@ mod tests {
       let visitor = PrintAst {};
       let representation = visitor.print(&res);
 
-      assert_eq!(representation, format!("({} 1 2)", &token.kind().symbol()));
+      assert_eq!(representation, format!("({} 1.0 2.0)", &token.kind().symbol()));
     }
 
   }
@@ -238,7 +238,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(== (<= 1 2) 3)");
+    assert_eq!(representation, "(== (<= 1.0 2.0) 3.0)");
   }
 
   #[test]
@@ -256,7 +256,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(+ 1 2)")
+    assert_eq!(representation, "(+ 1.0 2.0)")
   }
 
   #[test]
@@ -283,7 +283,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(== (+ 1 2) (- 3 4))")
+    assert_eq!(representation, "(== (+ 1.0 2.0) (- 3.0 4.0))")
   }
 
   #[test]
@@ -301,7 +301,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(* 1 2)")
+    assert_eq!(representation, "(* 1.0 2.0)")
   }
 
   #[test]
@@ -326,7 +326,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(== (-1) (!true))")
+    assert_eq!(representation, "(== (-1.0) (!true))")
   }
 
   #[test]
@@ -339,7 +339,7 @@ mod tests {
 
     let print = PrintAst::new();
 
-    assert_eq!(print.print(&LoxParser::new(vec![one_token]).parse()), "1");
+    assert_eq!(print.print(&LoxParser::new(vec![one_token]).parse()), "1.0");
     assert_eq!(print.print(&LoxParser::new(vec![nil_token]).parse()), "nil");
     assert_eq!(print.print(&LoxParser::new(vec![true_token]).parse()), "true");
     assert_eq!(print.print(&LoxParser::new(vec![false_token]).parse()), "false");
@@ -362,7 +362,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(group 1)")
+    assert_eq!(representation, "(group 1.0)")
   }
 
   #[test]
@@ -385,7 +385,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(group (+ 1 2))")
+    assert_eq!(representation, "(group (+ 1.0 2.0))")
   }
 
   #[test]

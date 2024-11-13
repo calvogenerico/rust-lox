@@ -9,7 +9,7 @@ impl PrintAst {
 
   pub fn print(&self, root: &Expr) -> String {
     match root {
-      Expr::LiteralNumber { value } => format!("{value}"),
+      Expr::LiteralNumber { value } => format!("{:?}", value),
       Expr::LiteralString { value } => format!("\"{value}\""),
       Expr::LiteralBool { value } => format!("{value}"),
       Expr::LiteralNil => "nil".to_string(),
