@@ -3,14 +3,14 @@ use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
 
-pub struct Parser {
+pub struct LoxParser {
   tokens: Vec<Token>,
   current_pos: usize,
 }
 
-impl Parser {
-  pub fn new(tokens: Vec<Token>) -> Parser {
-    Parser {
+impl LoxParser {
+  pub fn new(tokens: Vec<Token>) -> LoxParser {
+    LoxParser {
       tokens,
       current_pos: 0,
     }
@@ -41,7 +41,7 @@ impl Parser {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
     ) {
-      let right = self.primary()?;
+      let right = self.term()?;
       return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
     }
 
@@ -54,7 +54,7 @@ impl Parser {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Plus, TokenKind::Minus]
     ) {
-      let right = self.primary()?;
+      let right = self.factor()?;
       return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
     }
 
@@ -67,7 +67,7 @@ impl Parser {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Star, TokenKind::Slash]
     ) {
-      let right = self.primary()?;
+      let right = self.unary()?;
       return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
     }
 
@@ -132,12 +132,12 @@ impl Parser {
 
 #[cfg(test)]
 mod tests {
-  use crate::parse::visitor::PrintAst;
+  use crate::parse::print_ast::PrintAst;
   use super::*;
 
 
-  fn parser(tokens: Vec<Token>) -> Parser {
-    Parser::new(tokens)
+  fn parser(tokens: Vec<Token>) -> LoxParser {
+    LoxParser::new(tokens)
   }
 
   #[test]
@@ -339,11 +339,11 @@ mod tests {
 
     let print = PrintAst::new();
 
-    assert_eq!(print.print(&Parser::new(vec![one_token]).parse()), "1");
-    assert_eq!(print.print(&Parser::new(vec![nil_token]).parse()), "nil");
-    assert_eq!(print.print(&Parser::new(vec![true_token]).parse()), "true");
-    assert_eq!(print.print(&Parser::new(vec![false_token]).parse()), "false");
-    assert_eq!(print.print(&Parser::new(vec![string_token]).parse()), "\"some string\"");
+    assert_eq!(print.print(&LoxParser::new(vec![one_token]).parse()), "1");
+    assert_eq!(print.print(&LoxParser::new(vec![nil_token]).parse()), "nil");
+    assert_eq!(print.print(&LoxParser::new(vec![true_token]).parse()), "true");
+    assert_eq!(print.print(&LoxParser::new(vec![false_token]).parse()), "false");
+    assert_eq!(print.print(&LoxParser::new(vec![string_token]).parse()), "\"some string\"");
   }
 
   #[test]
@@ -387,4 +387,26 @@ mod tests {
 
     assert_eq!(representation, "(group (+ 1 2))")
   }
+
+  #[test]
+  fn plus_with_unary_test() {
+    let nil_token = Token::new(TokenKind::Nil, 1);
+    let plus_token = Token::new(TokenKind::Plus, 1);
+    let bang_token = Token::new(TokenKind::Bang, 1);
+    let false_token = Token::new(TokenKind::False, 1);
+
+    let parser = parser(vec![
+      nil_token,
+      plus_token,
+      bang_token,
+      false_token
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(+ nil (!false))")
+  }
 }
+

@@ -6,6 +6,8 @@ use std::process::ExitCode;
 use clap::{Error, Parser, Subcommand};
 
 use scan::scanner::Scanner;
+use parse::parser::LoxParser;
+use crate::parse::print_ast::PrintAst;
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "git")]
@@ -28,10 +30,6 @@ enum Commands {
     file_path: Option<String>,
   },
 }
-
-// fn run() -> Result<ExitCode, Error> {
-//
-// }
 
 fn main() -> Result<ExitCode, Error> {
   let args = Cli::parse();
@@ -56,11 +54,15 @@ fn main() -> Result<ExitCode, Error> {
         ExitCode::from(65)
       }
     },
-    Commands::Parse { file_path: Some(_path) } => {
-      // let mut input = File::open(&path)?;
-      // let mut scanner = Scanner::new(&mut input);
-      // let (tokens, _errors) = scanner.scan_tokens();
+    Commands::Parse { file_path: Some(path) } => {
+      let mut input = File::open(&path)?;
+      let scanner = Scanner::new(&mut input);
+      let (tokens, _errors) = scanner.scan_tokens();
 
+      let parser = LoxParser::new(tokens);
+      let ast = parser.parse();
+      let repr = PrintAst::new().print(&ast);
+      println!("{}", &repr);
 
       ExitCode::from(0)
     }
