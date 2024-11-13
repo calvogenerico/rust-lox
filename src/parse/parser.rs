@@ -36,25 +36,65 @@ impl Parser {
   }
 
   fn comparison(&mut self) -> Result<Expr, String> {
-    let left = self.literal()?;
+    let left = self.term()?;
 
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
     ) {
-      let right = self.literal()?;
+      let right = self.primary()?;
       return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
     }
 
     Ok(left)
   }
 
-  fn literal(&mut self) -> Result<Expr, String> {
+  fn term(&mut self) -> Result<Expr, String> {
+    let left = self.factor()?;
+
+    if let Some(operator) = self.advance_if_match(
+      &[TokenKind::Plus, TokenKind::Minus]
+    ) {
+      let right = self.primary()?;
+      return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
+    }
+
+    Ok(left)
+  }
+
+  fn factor(&mut self) -> Result<Expr, String> {
+    let left = self.unary()?;
+
+    if let Some(operator) = self.advance_if_match(
+      &[TokenKind::Star, TokenKind::Slash]
+    ) {
+      let right = self.primary()?;
+      return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
+    }
+
+    Ok(left)
+  }
+
+  fn unary(&mut self) -> Result<Expr, String> {
+    if let Some(operator) = self.advance_if_match(
+      &[TokenKind::Minus, TokenKind::Bang]
+    ) {
+      let expr = self.primary()?;
+      return Ok(Expr::Unary { operator, right: Box::new(expr) });
+    }
+
+    self.primary()
+  }
+
+  fn primary(&mut self) -> Result<Expr, String> {
     let maybe = self.next_token();
     let token = maybe.unwrap();
 
     let token = match token.kind() {
       TokenKind::Number(repr) => Expr::LiteralNumber { value: repr.parse().unwrap() },
       TokenKind::True => Expr::LiteralBool { value: true },
+      TokenKind::False => Expr::LiteralBool { value: false },
+      TokenKind::String(repr) => Expr::LiteralString { value: repr.to_string() },
+      TokenKind::Nil => Expr::LiteralNil,
       _ => panic!("not implemented")
     };
 
@@ -150,22 +190,31 @@ mod tests {
   }
 
   #[test]
-  fn parse_less_than_returns_correct_tree() {
-    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
-    let less_than_token = Token::new(TokenKind::Less, 1);
-    let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
+  fn parse_comparisons_returns_correct_tree() {
+    let tokens = vec![
+      Token::new(TokenKind::Less, 1),
+      Token::new(TokenKind::LessEqual, 1),
+      Token::new(TokenKind::Greater, 1),
+      Token::new(TokenKind::GreaterEqual, 1)
+    ];
 
-    let parser = parser(vec![one_token, less_than_token, two_token]);
-    let res = parser.parse();
+    for token in tokens {
+      let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+      let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
 
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
+      let parser = parser(vec![one_token, token.clone(), two_token]);
+      let res = parser.parse();
 
-    assert_eq!(representation, "(< 1 2)");
+      let visitor = PrintAst {};
+      let representation = visitor.print(&res);
+
+      assert_eq!(representation, format!("({} 1 2)", &token.kind().symbol()));
+    }
+
   }
 
   #[test]
-  fn parse_less_than_between_equal_equal_reeturns_correct_tree() {
+  fn parse_less_than_between_equal_equal_returns_correct_tree() {
     let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let three_token = Token::new(TokenKind::Number("3".to_string()), 1);
@@ -185,5 +234,110 @@ mod tests {
     let representation = visitor.print(&res);
 
     assert_eq!(representation, "(== (<= 1 2) 3)");
+  }
+
+  #[test]
+  fn parse_plus_returns_right_tree() {
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
+    let plus_token = Token::new(TokenKind::Plus, 1);
+
+    let parser = parser(vec![
+      one_token,
+      plus_token,
+      two_token
+    ]);
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(+ 1 2)")
+  }
+
+  #[test]
+  fn parse_plus_minus_and_comparissons_returns_right_tree() {
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
+    let tree_token = Token::new(TokenKind::Number("3".to_string()), 1);
+    let four_token = Token::new(TokenKind::Number("4".to_string()), 1);
+    let plus_token = Token::new(TokenKind::Plus, 1);
+    let minus_token = Token::new(TokenKind::Minus, 1);
+    let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
+
+    let parser = parser(vec![
+      one_token,
+      plus_token,
+      two_token,
+      equal_equal_token,
+      tree_token,
+      minus_token,
+      four_token
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(== (+ 1 2) (- 3 4))")
+  }
+
+  #[test]
+  fn product_test() {
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
+    let star_token = Token::new(TokenKind::Star, 1);
+
+    let parser = parser(vec![
+      one_token,
+      star_token,
+      two_token
+    ]);
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(* 1 2)")
+  }
+
+  #[test]
+  fn unary_test() {
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let minus_token = Token::new(TokenKind::Minus, 1);
+
+    let true_token = Token::new(TokenKind::True, 1);
+    let bang_token = Token::new(TokenKind::Bang, 1);
+
+    let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
+
+    let parser = parser(vec![
+      minus_token,
+      one_token,
+      equal_equal_token,
+      bang_token,
+      true_token
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(== (-1) (!true))")
+  }
+
+  #[test]
+  fn all_primary_types() {
+    let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
+    let nil_token = Token::new(TokenKind::Nil, 1);
+    let true_token = Token::new(TokenKind::True, 1);
+    let false_token = Token::new(TokenKind::False, 1);
+    let string_token = Token::new(TokenKind::String("some string".to_string()), 1);
+
+    let print = PrintAst::new();
+
+    assert_eq!(print.print(&Parser::new(vec![one_token]).parse()), "1");
+    assert_eq!(print.print(&Parser::new(vec![nil_token]).parse()), "nil");
+    assert_eq!(print.print(&Parser::new(vec![true_token]).parse()), "true");
+    assert_eq!(print.print(&Parser::new(vec![false_token]).parse()), "false");
+    assert_eq!(print.print(&Parser::new(vec![string_token]).parse()), "\"some string\"");
   }
 }
