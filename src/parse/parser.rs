@@ -326,7 +326,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(== (-1.0) (!true))")
+    assert_eq!(representation, "(== (- 1.0) (! true))")
   }
 
   #[test]
@@ -406,7 +406,7 @@ mod tests {
     let visitor = PrintAst {};
     let representation = visitor.print(&res);
 
-    assert_eq!(representation, "(+ nil (!false))")
+    assert_eq!(representation, "(+ nil (! false))")
   }
 }
 
