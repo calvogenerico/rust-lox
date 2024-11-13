@@ -343,7 +343,7 @@ mod tests {
     assert_eq!(print.print(&LoxParser::new(vec![nil_token]).parse()), "nil");
     assert_eq!(print.print(&LoxParser::new(vec![true_token]).parse()), "true");
     assert_eq!(print.print(&LoxParser::new(vec![false_token]).parse()), "false");
-    assert_eq!(print.print(&LoxParser::new(vec![string_token]).parse()), "\"some string\"");
+    assert_eq!(print.print(&LoxParser::new(vec![string_token]).parse()), "some string");
   }
 
   #[test]
