@@ -25,50 +25,50 @@ impl LoxParser {
   }
 
   fn equality(&mut self) -> Result<Expr, String> {
-    let left = self.comparison()?;
+    let mut left = self.comparison()?;
 
-    if let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
       let right = self.comparison()?;
-      return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
+      left = Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) };
     }
 
     Ok(left)
   }
 
   fn comparison(&mut self) -> Result<Expr, String> {
-    let left = self.term()?;
+    let mut left = self.term()?;
 
-    if let Some(operator) = self.advance_if_match(
+    while let Some(operator) = self.advance_if_match(
       &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
     ) {
       let right = self.term()?;
-      return Ok(Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) });
+      left = Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) };
     }
 
     Ok(left)
   }
 
   fn term(&mut self) -> Result<Expr, String> {
-    let left = self.factor()?;
+    let mut left = self.factor()?;
 
-    if let Some(operator) = self.advance_if_match(
+    while let Some(operator) = self.advance_if_match(
       &[TokenKind::Plus, TokenKind::Minus]
     ) {
       let right = self.factor()?;
-      return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
+      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
 
     Ok(left)
   }
 
   fn factor(&mut self) -> Result<Expr, String> {
-    let left = self.unary()?;
+    let mut left = self.unary()?;
 
-    if let Some(operator) = self.advance_if_match(
+    while let Some(operator) = self.advance_if_match(
       &[TokenKind::Star, TokenKind::Slash]
     ) {
       let right = self.unary()?;
-      return Ok(Expr::Binary { left: Box::new(left), operator, right: Box::new(right) });
+      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
 
     Ok(left)
@@ -215,7 +215,6 @@ mod tests {
 
       assert_eq!(representation, format!("({} 1.0 2.0)", &token.kind().symbol()));
     }
-
   }
 
   #[test]
@@ -425,6 +424,106 @@ mod tests {
     let representation = visitor.print(&res);
 
     assert_eq!(representation, "(! (! false))")
+  }
+
+  #[test]
+  fn multiple_divs_and_mult() {
+    // 84 * 69 / 56
+    let n1 = Token::new(TokenKind::Number("84".to_string()), 1);
+    let n2 = Token::new(TokenKind::Number("69".to_string()), 1);
+    let n3 = Token::new(TokenKind::Number("56".to_string()), 1);
+    let star = Token::new(TokenKind::Star, 1);
+    let slash = Token::new(TokenKind::Slash, 1);
+
+
+    let parser = parser(vec![
+      n1,
+      star,
+      n2,
+      slash,
+      n3
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(/ (* 84.0 69.0) 56.0)")
+  }
+
+  #[test]
+  fn multiple_plus_and_minus() {
+    // 84 * 69 / 56
+    let n1 = Token::new(TokenKind::Number("84".to_string()), 1);
+    let n2 = Token::new(TokenKind::Number("69".to_string()), 1);
+    let n3 = Token::new(TokenKind::Number("56".to_string()), 1);
+    let plus = Token::new(TokenKind::Plus, 1);
+    let minus = Token::new(TokenKind::Minus, 1);
+
+
+    let parser = parser(vec![
+      n1,
+      plus,
+      n2,
+      minus,
+      n3
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(- (+ 84.0 69.0) 56.0)")
+  }
+
+  #[test]
+  fn multiple_equalities() {
+    // 84 * 69 / 56
+    let n1 = Token::new(TokenKind::Number("84".to_string()), 1);
+    let n2 = Token::new(TokenKind::Number("69".to_string()), 1);
+    let n3 = Token::new(TokenKind::Number("56".to_string()), 1);
+    let equal_equal = Token::new(TokenKind::EqualEqual, 1);
+    let bang_equal = Token::new(TokenKind::BangEqual, 1);
+
+
+    let parser = parser(vec![
+      n1,
+      equal_equal,
+      n2,
+      bang_equal,
+      n3
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(!= (== 84.0 69.0) 56.0)")
+  }
+
+  #[test]
+  fn multiple_comparisons() {
+    // 84 * 69 / 56
+    let n1 = Token::new(TokenKind::Number("84".to_string()), 1);
+    let n2 = Token::new(TokenKind::Number("69".to_string()), 1);
+    let n3 = Token::new(TokenKind::Number("56".to_string()), 1);
+    let less = Token::new(TokenKind::Less, 1);
+    let greater = Token::new(TokenKind::Greater, 1);
+
+
+    let parser = parser(vec![
+      n1,
+      less,
+      n2,
+      greater,
+      n3
+    ]);
+
+    let res = parser.parse();
+    let visitor = PrintAst {};
+    let representation = visitor.print(&res);
+
+    assert_eq!(representation, "(> (< 84.0 69.0) 56.0)")
   }
 }
 
