@@ -1,4 +1,5 @@
 use crate::parse::enum_expr::Expr;
+use crate::parse::parse_error::ParseError;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
@@ -16,15 +17,15 @@ impl LoxParser {
     }
   }
 
-  pub fn parse(mut self) -> Expr {
-    self.expression().unwrap()
+  pub fn parse(mut self) -> Result<Expr, ParseError> {
+    self.expression()
   }
 
-  fn expression(&mut self) -> Result<Expr, String> {
+  fn expression(&mut self) -> Result<Expr, ParseError> {
     self.equality()
   }
 
-  fn equality(&mut self) -> Result<Expr, String> {
+  fn equality(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.comparison()?;
 
     while let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
@@ -35,7 +36,7 @@ impl LoxParser {
     Ok(left)
   }
 
-  fn comparison(&mut self) -> Result<Expr, String> {
+  fn comparison(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.term()?;
 
     while let Some(operator) = self.advance_if_match(
@@ -48,7 +49,7 @@ impl LoxParser {
     Ok(left)
   }
 
-  fn term(&mut self) -> Result<Expr, String> {
+  fn term(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.factor()?;
 
     while let Some(operator) = self.advance_if_match(
@@ -61,7 +62,7 @@ impl LoxParser {
     Ok(left)
   }
 
-  fn factor(&mut self) -> Result<Expr, String> {
+  fn factor(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.unary()?;
 
     while let Some(operator) = self.advance_if_match(
@@ -74,7 +75,7 @@ impl LoxParser {
     Ok(left)
   }
 
-  fn unary(&mut self) -> Result<Expr, String> {
+  fn unary(&mut self) -> Result<Expr, ParseError> {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Minus, TokenKind::Bang]
     ) {
@@ -85,25 +86,36 @@ impl LoxParser {
     self.primary()
   }
 
-  fn primary(&mut self) -> Result<Expr, String> {
-    let maybe = self.next_token();
-    let token = maybe.unwrap();
+  fn primary(&mut self) -> Result<Expr, ParseError> {
+    let maybe_token = self.next_token();
+    // let maybe_kind = maybe_token.map(|t| t.kind());
+    if maybe_token.is_none() {
+      return Err(ParseError::MissingEOF);
+    }
 
-    let expr = match token.kind() {
-      TokenKind::Number(repr) => Expr::LiteralNumber { value: repr.parse().unwrap() },
-      TokenKind::True => Expr::LiteralBool { value: true },
-      TokenKind::False => Expr::LiteralBool { value: false },
-      TokenKind::String(repr) => Expr::LiteralString { value: repr.to_string() },
-      TokenKind::Nil => Expr::LiteralNil,
+    let token = maybe_token.unwrap().clone();
+
+    match token.kind() {
+      TokenKind::Number(repr) => Ok(Expr::LiteralNumber { value: repr.parse().unwrap() }),
+      TokenKind::True => Ok(Expr::LiteralBool { value: true }),
+      TokenKind::False => Ok(Expr::LiteralBool { value: false }),
+      TokenKind::String(repr) => Ok(Expr::LiteralString { value: repr.to_string() }),
+      TokenKind::Nil => Ok(Expr::LiteralNil),
       TokenKind::LeftParen => {
         let res = self.expression()?;
-        self.next_token().unwrap();
-        Expr::Group { expression: Box::new(res) }
-      }
-      _ => panic!("not implemented")
-    };
+        let closed = self.next_token().is_some_and(|atoken| {
+          *atoken.kind() == TokenKind::RightParen
+        });
 
-    Ok(expr)
+        if !closed {
+          return Err(ParseError::MalformedExpression(token.line(), "Missing closing parenthesis".to_string()));
+        }
+
+        Ok(Expr::Group { expression: Box::new(res) })
+      }
+      TokenKind::Eof => Err(ParseError::MalformedExpression(token.line(), "Unexpected end of file".to_string())),
+      _ => panic!("not implemented")
+    }
   }
 
 
@@ -140,26 +152,24 @@ mod tests {
     LoxParser::new(tokens)
   }
 
+  fn parse_and_print(tokens: Vec<Token>) -> String {
+    let parser = parser(tokens);
+    let res = parser.parse().unwrap();
+    let visitor = PrintAst {};
+    visitor.print(&res)
+  }
+
   #[test]
   fn parse_a_number_returns_a_number_expr() {
     let number_token = Token::new(TokenKind::Number("1.2".to_string()), 1);
-    let parser = parser(vec![number_token]);
-    let res = parser.parse();
-
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
-
+    let representation = parse_and_print(vec![number_token]);
     assert_eq!(representation, "1.2");
   }
 
   #[test]
   fn parse_true_returns_a_boolean_expr() {
     let bool_token = Token::new(TokenKind::True, 1);
-    let parser = parser(vec![bool_token]);
-    let res = parser.parse();
-
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
+    let representation = parse_and_print(vec![bool_token]);
 
     assert_eq!(representation, "true");
   }
@@ -170,11 +180,7 @@ mod tests {
     let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
 
-    let parser = parser(vec![one_token, equal_equal_token, two_token]);
-    let res = parser.parse();
-
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
+    let representation = parse_and_print(vec![one_token, equal_equal_token, two_token]);
 
     assert_eq!(representation, "(== 1.0 2.0)");
   }
@@ -185,11 +191,7 @@ mod tests {
     let bang_equal_token = Token::new(TokenKind::BangEqual, 1);
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
 
-    let parser = parser(vec![one_token, bang_equal_token, two_token]);
-    let res = parser.parse();
-
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
+    let representation = parse_and_print(vec![one_token, bang_equal_token, two_token]);
 
     assert_eq!(representation, "(!= 1.0 2.0)");
   }
@@ -207,11 +209,8 @@ mod tests {
       let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
       let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
 
-      let parser = parser(vec![one_token, token.clone(), two_token]);
-      let res = parser.parse();
 
-      let visitor = PrintAst {};
-      let representation = visitor.print(&res);
+      let representation = parse_and_print(vec![one_token, token.clone(), two_token]);
 
       assert_eq!(representation, format!("({} 1.0 2.0)", &token.kind().symbol()));
     }
@@ -225,17 +224,13 @@ mod tests {
     let less_than_token = Token::new(TokenKind::LessEqual, 1);
     let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       one_token,
       less_than_token,
       two_token,
       equal_equal_token,
       three_token
     ]);
-    let res = parser.parse();
-
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(== (<= 1.0 2.0) 3.0)");
   }
@@ -246,14 +241,11 @@ mod tests {
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let plus_token = Token::new(TokenKind::Plus, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       one_token,
       plus_token,
       two_token
     ]);
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(+ 1.0 2.0)")
   }
@@ -268,7 +260,7 @@ mod tests {
     let minus_token = Token::new(TokenKind::Minus, 1);
     let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       one_token,
       plus_token,
       two_token,
@@ -277,10 +269,6 @@ mod tests {
       minus_token,
       four_token
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(== (+ 1.0 2.0) (- 3.0 4.0))")
   }
@@ -291,14 +279,11 @@ mod tests {
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let star_token = Token::new(TokenKind::Star, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       one_token,
       star_token,
       two_token
     ]);
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(* 1.0 2.0)")
   }
@@ -313,17 +298,13 @@ mod tests {
 
     let equal_equal_token = Token::new(TokenKind::EqualEqual, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       minus_token,
       one_token,
       equal_equal_token,
       bang_token,
       true_token
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(== (- 1.0) (! true))")
   }
@@ -336,13 +317,11 @@ mod tests {
     let false_token = Token::new(TokenKind::False, 1);
     let string_token = Token::new(TokenKind::String("some string".to_string()), 1);
 
-    let print = PrintAst::new();
-
-    assert_eq!(print.print(&LoxParser::new(vec![one_token]).parse()), "1.0");
-    assert_eq!(print.print(&LoxParser::new(vec![nil_token]).parse()), "nil");
-    assert_eq!(print.print(&LoxParser::new(vec![true_token]).parse()), "true");
-    assert_eq!(print.print(&LoxParser::new(vec![false_token]).parse()), "false");
-    assert_eq!(print.print(&LoxParser::new(vec![string_token]).parse()), "some string");
+    assert_eq!(parse_and_print(vec![one_token]), "1.0");
+    assert_eq!(parse_and_print(vec![nil_token]), "nil");
+    assert_eq!(parse_and_print(vec![true_token]), "true");
+    assert_eq!(parse_and_print(vec![false_token]), "false");
+    assert_eq!(parse_and_print(vec![string_token]), "some string");
   }
 
   #[test]
@@ -351,15 +330,11 @@ mod tests {
     let right_paren = Token::new(TokenKind::RightParen, 1);
     let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       left_paren,
       one_token,
       right_paren
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(group 1.0)")
   }
@@ -372,17 +347,13 @@ mod tests {
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let plus_token = Token::new(TokenKind::Plus, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       left_paren,
       one_token,
       plus_token,
       two_token,
       right_paren
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(group (+ 1.0 2.0))")
   }
@@ -394,16 +365,12 @@ mod tests {
     let bang_token = Token::new(TokenKind::Bang, 1);
     let false_token = Token::new(TokenKind::False, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       nil_token,
       plus_token,
       bang_token,
       false_token
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(+ nil (! false))")
   }
@@ -413,15 +380,11 @@ mod tests {
     let bang_token = Token::new(TokenKind::Bang, 1);
     let false_token = Token::new(TokenKind::False, 1);
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       bang_token.clone(),
       bang_token,
       false_token
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(! (! false))")
   }
@@ -436,17 +399,13 @@ mod tests {
     let slash = Token::new(TokenKind::Slash, 1);
 
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       n1,
       star,
       n2,
       slash,
       n3
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(/ (* 84.0 69.0) 56.0)")
   }
@@ -461,17 +420,13 @@ mod tests {
     let minus = Token::new(TokenKind::Minus, 1);
 
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       n1,
       plus,
       n2,
       minus,
       n3
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(- (+ 84.0 69.0) 56.0)")
   }
@@ -486,17 +441,13 @@ mod tests {
     let bang_equal = Token::new(TokenKind::BangEqual, 1);
 
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       n1,
       equal_equal,
       n2,
       bang_equal,
       n3
     ]);
-
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
 
     assert_eq!(representation, "(!= (== 84.0 69.0) 56.0)")
   }
@@ -511,7 +462,7 @@ mod tests {
     let greater = Token::new(TokenKind::Greater, 1);
 
 
-    let parser = parser(vec![
+    let representation = parse_and_print(vec![
       n1,
       less,
       n2,
@@ -519,11 +470,38 @@ mod tests {
       n3
     ]);
 
-    let res = parser.parse();
-    let visitor = PrintAst {};
-    let representation = visitor.print(&res);
-
     assert_eq!(representation, "(> (< 84.0 69.0) 56.0)")
+  }
+
+  #[test]
+  fn a_non_closed_parenthesis_returns_error() {
+    let tokens = vec![
+      Token::new(TokenKind::LeftParen, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Plus, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ];
+
+    let parser = parser(tokens);
+    let res = parser.parse();
+
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ParseError::MalformedExpression(1, "Missing closing parenthesis".to_string()));
+  }
+
+  #[test]
+  fn a_missing_term_after_a_plus_returns_error() {
+    let tokens = vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Plus, 1),
+      Token::new(TokenKind::Eof, 1)
+    ];
+
+    let parser = parser(tokens);
+    let res = parser.parse();
+
+    assert!(res.is_err());
+    assert_eq!(res.unwrap_err(), ParseError::MalformedExpression(1, "Unexpected end of file".to_string()));
   }
 }
 

@@ -21,4 +21,8 @@ impl Token {
   pub fn kind(&self) -> &TokenKind {
     &self.kind
   }
+  
+  pub fn line(&self) -> usize {
+    self.line
+  }
 }

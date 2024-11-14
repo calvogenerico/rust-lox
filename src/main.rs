@@ -60,7 +60,7 @@ fn main() -> Result<ExitCode, Error> {
       let (tokens, _errors) = scanner.scan_tokens();
 
       let parser = LoxParser::new(tokens);
-      let ast = parser.parse();
+      let ast = parser.parse().unwrap();
       let repr = PrintAst::new().print(&ast);
       println!("{}", &repr);
 
