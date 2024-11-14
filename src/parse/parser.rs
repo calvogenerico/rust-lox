@@ -114,7 +114,7 @@ impl LoxParser {
         Ok(Expr::Group { expression: Box::new(res) })
       }
       TokenKind::Eof => Err(ParseError::MalformedExpression(token.line(), "Unexpected end of file".to_string())),
-      _ => panic!("not implemented")
+      _ => Err(ParseError::MalformedExpression(token.line(), format!("Expected expression got `{}`", token.symbol())))
     }
   }
 

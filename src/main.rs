@@ -57,11 +57,20 @@ fn main() -> Result<ExitCode, Error> {
     Commands::Parse { file_path: Some(path) } => {
       let mut input = File::open(&path)?;
       let scanner = Scanner::new(&mut input);
-      let (tokens, _errors) = scanner.scan_tokens();
+      let (tokens, errors) = scanner.scan_tokens();
 
       let parser = LoxParser::new(tokens);
-      let ast = parser.parse().unwrap();
-      let repr = PrintAst::new().print(&ast);
+      let ast = parser.parse();
+
+      if !errors.is_empty() || ast.is_err() {
+        for error in &errors {
+          eprintln!("{error}")
+        }
+        eprintln!("{}", ast.unwrap_err().to_string());
+        return Ok(ExitCode::from(65))
+      }
+
+      let repr = PrintAst::new().print(&ast.unwrap());
       println!("{}", &repr);
 
       ExitCode::from(0)
