@@ -1,4 +1,4 @@
-use crate::parse::enum_expr::Expr;
+use crate::parse::expr::Expr;
 use crate::parse::parse_error::ParseError;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;

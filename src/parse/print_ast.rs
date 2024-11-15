@@ -1,4 +1,4 @@
-use crate::parse::enum_expr::Expr;
+use crate::parse::expr::Expr;
 
 pub struct PrintAst {}
 

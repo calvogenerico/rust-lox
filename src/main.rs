@@ -1,5 +1,6 @@
 mod scan;
 mod parse;
+mod interpret;
 
 use std::fs::File;
 use std::process::ExitCode;
@@ -7,6 +8,7 @@ use clap::{Error, Parser, Subcommand};
 
 use scan::scanner::Scanner;
 use parse::parser::LoxParser;
+use crate::interpret::interpreter::Interpreter;
 use crate::parse::print_ast::PrintAst;
 
 #[derive(Debug, Parser)] // requires `derive` feature
@@ -28,6 +30,10 @@ enum Commands {
   #[command(arg_required_else_help = true)]
   Parse {
     file_path: Option<String>,
+  },
+  #[command(arg_required_else_help = true)]
+  Evaluate {
+    file_path: String,
   },
 }
 
@@ -74,7 +80,22 @@ fn main() -> Result<ExitCode, Error> {
       println!("{}", &repr);
 
       ExitCode::from(0)
-    }
+    },
+    Commands::Evaluate { file_path } => {
+      let mut input = File::open(&file_path)?;
+      let scanner = Scanner::new(&mut input);
+      let (tokens, errors) = scanner.scan_tokens();
+
+      let parser = LoxParser::new(tokens);
+      let ast = parser.parse().unwrap();
+
+      let interpreter = Interpreter::new();
+      let value = interpreter.interpret(ast).unwrap();
+
+      println!("{}", value.to_string());
+
+      ExitCode::from(0)
+    },
     _ => ExitCode::from(1)
   };
   Ok(code)
