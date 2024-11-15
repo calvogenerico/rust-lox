@@ -84,7 +84,7 @@ fn main() -> Result<ExitCode, Error> {
     Commands::Evaluate { file_path } => {
       let mut input = File::open(&file_path)?;
       let scanner = Scanner::new(&mut input);
-      let (tokens, errors) = scanner.scan_tokens();
+      let (tokens, _errors) = scanner.scan_tokens();
 
       let parser = LoxParser::new(tokens);
       let ast = parser.parse().unwrap();
