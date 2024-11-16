@@ -1,5 +1,6 @@
 use crate::interpret::error::InterpreterError;
 use crate::parse::expr::Expr;
+use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
 pub struct Interpreter {}
@@ -34,28 +35,32 @@ impl Interpreter {
       Expr::LiteralNumber { value } => Ok(Value::Number(*value)),
       Expr::LiteralNil => Ok(Value::Nil),
       Expr::LiteralBool { value } => Ok(Value::Boolean(*value)),
-      Expr::Unary { operator, right } => {
-        let value = self.interpret(right)?;
-        match (value, operator.kind()) {
-          (Value::Number(value), TokenKind::Minus) => Ok(Value::Number(-value)),
-          (val, TokenKind::Bang) => Ok(Value::Boolean(!self.is_truthy(&val))),
-          _ => panic!("not implemented")
-        }
-      }
+      Expr::Unary { operator, right } => self.unary(operator, right)?,
       Expr::LiteralString { value } => Ok(Value::String(value.to_string())),
       Expr::Group { expression } => self.interpret(expression),
-      Expr::Binary { left, operator, right } => {
-        let left = self.interpret(left)?;
-        let right = self.interpret(right)?;
-
-        match (operator.kind(), &left, &right) {
-          (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 + n2)),
-          (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 - n2)),
-          (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
-          _ => panic!()
-        }
-      }
+      Expr::Binary { left, operator, right } => self.binary(left, operator, right)?,
     }
+  }
+
+  fn unary(&self, operator: &Token, right: &Expr) -> Result<Result<Value, InterpreterError>, InterpreterError> {
+    let value = self.interpret(right)?;
+    Ok(match (value, operator.kind()) {
+      (Value::Number(value), TokenKind::Minus) => Ok(Value::Number(-value)),
+      (val, TokenKind::Bang) => Ok(Value::Boolean(!self.is_truthy(&val))),
+      _ => panic!("not implemented")
+    })
+  }
+
+  fn binary(&self, left: &Expr, operator: &Token, right: &Expr) -> Result<Result<Value, InterpreterError>, InterpreterError> {
+    let left = self.interpret(left)?;
+    let right = self.interpret(right)?;
+
+    Ok(match (operator.kind(), &left, &right) {
+      (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 + n2)),
+      (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 - n2)),
+      (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
+      _ => panic!()
+    })
   }
 
   fn is_truthy(&self, value: &Value) -> bool {
@@ -169,7 +174,7 @@ mod tests {
 
   #[test]
   fn eval_not_a_positive_number_returns_false() {
-    // any number is truty
+    // any number is truthy
     let interpreted = interpret_tokens(vec![
       Token::new(TokenKind::Bang, 1),
       Token::new(TokenKind::Number("1.0".to_string()), 1)
@@ -181,7 +186,7 @@ mod tests {
 
   #[test]
   fn eval_not_zero_returns_false() {
-    // any number is truty
+    // any number is truthy
     let interpreted = interpret_tokens(vec![
       Token::new(TokenKind::Bang, 1),
       Token::new(TokenKind::Number("0".to_string()), 1)
