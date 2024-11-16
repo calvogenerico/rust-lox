@@ -90,7 +90,12 @@ fn main() -> Result<ExitCode, Error> {
       let ast = parser.parse().unwrap();
 
       let interpreter = Interpreter::new();
-      let value = interpreter.interpret(&ast).unwrap();
+      let res = interpreter.interpret(&ast);
+      if res.is_err() {
+        eprintln!("{}", res.unwrap_err().to_string());
+        return Ok(ExitCode::from(70));
+      }
+      let value = res.unwrap();
 
       println!("{}", value.to_string());
 
