@@ -82,7 +82,9 @@ impl Interpreter {
         | TokenKind::GreaterEqual
         | TokenKind::Less
         | TokenKind::LessEqual
-        | TokenKind::Plus,
+        | TokenKind::Plus
+        | TokenKind::Star
+        | TokenKind::Slash,
         val1,
         val2) =>
         Err(InterpreterError::WrongBinaryOperationType(
@@ -92,7 +94,7 @@ impl Interpreter {
           val2.type_name().to_string()
         )),
 
-      _ => panic!()
+      _ => Err(InterpreterError::InvalidExpression)
     })
   }
 
@@ -622,6 +624,40 @@ mod tests {
     assert_eq!(err, InterpreterError::WrongBinaryOperationType(
       1,
       "<=".to_string(),
+      "Number".to_string(),
+      "String".to_string()
+    ));
+  }
+
+  #[test]
+  fn eval_multiplication_between_number_and_string_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Star, 1),
+      Token::new(TokenKind::String("2".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "*".to_string(),
+      "Number".to_string(),
+      "String".to_string()
+    ));
+  }
+
+  #[test]
+  fn eval_slash_between_number_and_string_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Slash, 1),
+      Token::new(TokenKind::String("2".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "/".to_string(),
       "Number".to_string(),
       "String".to_string()
     ));
