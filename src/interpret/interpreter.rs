@@ -22,6 +22,15 @@ impl Value {
       Value::String(value) => value.to_string()
     }
   }
+
+  pub fn type_name(&self) -> &'static str {
+    match self {
+      Value::Number(_) => "Number",
+      Value::Nil => "nil",
+      Value::Boolean(_) => "Boolean",
+      Value::String(_) => "String",
+    }
+  }
 }
 
 
@@ -47,7 +56,8 @@ impl Interpreter {
     Ok(match (value, operator.kind()) {
       (Value::Number(value), TokenKind::Minus) => Ok(Value::Number(-value)),
       (val, TokenKind::Bang) => Ok(Value::Boolean(!self.is_truthy(&val))),
-      _ => panic!("not implemented")
+      (value, TokenKind::Minus) => Err(InterpreterError::NotANumber(operator.line(), value.type_name().to_string())),
+      _ => Err(InterpreterError::InvalidExpression)
     })
   }
 
@@ -67,6 +77,21 @@ impl Interpreter {
       (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 > n2)),
       (TokenKind::GreaterEqual, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 >= n2)),
       (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
+      (
+        TokenKind::Greater
+        | TokenKind::GreaterEqual
+        | TokenKind::Less
+        | TokenKind::LessEqual
+        | TokenKind::Plus,
+        val1,
+        val2) =>
+        Err(InterpreterError::WrongBinaryOperationType(
+          operator.line(),
+          operator.kind().symbol(),
+          val1.type_name().to_string(),
+          val2.type_name().to_string()
+        )),
+
       _ => panic!()
     })
   }
@@ -107,7 +132,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_number_1() {
+  fn eval_number_1() {
     let interpreted = interpret_tokens(vec![Token::new(TokenKind::Number("1.0".to_string()), 1)]);
     let res = interpreted.unwrap();
 
@@ -115,7 +140,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_number_2() {
+  fn eval_number_2() {
     let interpreted = interpret_tokens(vec![Token::new(TokenKind::Number("2.0".to_string()), 1)]);
     let res = interpreted.unwrap();
 
@@ -123,7 +148,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_nil() {
+  fn eval_nil() {
     let interpreted = interpret_tokens(vec![Token::new(TokenKind::Nil, 1)]);
     let res = interpreted.unwrap();
 
@@ -131,7 +156,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_true() {
+  fn eval_true() {
     let interpreted = interpret_tokens(vec![Token::new(TokenKind::True, 1)]);
     let res = interpreted.unwrap();
 
@@ -139,7 +164,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_false() {
+  fn eval_false() {
     let interpreted = interpret_tokens(vec![Token::new(TokenKind::False, 1)]);
     let res = interpreted.unwrap();
 
@@ -147,7 +172,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_minus_one() {
+  fn eval_minus_one() {
     let interpreted = interpret_tokens(vec![
       Token::new(TokenKind::Minus, 1),
       Token::new(TokenKind::Number("1".to_string()), 1)
@@ -158,7 +183,7 @@ mod tests {
   }
 
   #[test]
-  fn parse_minus_string() {
+  fn eval_minus_string() {
     let interpreted = interpret_tokens(vec![
       Token::new(TokenKind::String("foo".to_string()), 1)
     ]);
@@ -498,5 +523,107 @@ mod tests {
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_minus_string_returns_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Minus, 1),
+      Token::new(TokenKind::String("1".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+
+    assert_eq!(err, InterpreterError::NotANumber(1, "String".to_string()))
+  }
+
+  #[test]
+  fn eval_minus_nil_returns_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Minus, 1),
+      Token::new(TokenKind::Nil, 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+
+    assert_eq!(err, InterpreterError::NotANumber(1, "nil".to_string()))
+  }
+
+  #[test]
+  fn eval_minus_true_returns_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Minus, 1),
+      Token::new(TokenKind::True, 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+
+    assert_eq!(err, InterpreterError::NotANumber(1, "Boolean".to_string()))
+  }
+
+  #[test]
+  fn eval_aditions_fails_if_one_is_a_bool() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Plus, 1),
+      Token::new(TokenKind::True, 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "+".to_string(),
+      "Number".to_string(),
+      "Boolean".to_string()
+    ));
+
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::True, 1),
+      Token::new(TokenKind::Plus, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "+".to_string(),
+      "Boolean".to_string(),
+      "Number".to_string()
+    ));
+  }
+
+  #[test]
+  fn eval_addition_between_number_and_string_fails() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Plus, 1),
+      Token::new(TokenKind::String("2".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "+".to_string(),
+      "Number".to_string(),
+      "String".to_string()
+    ));
+  }
+
+  #[test]
+  fn eval_comparisson_between_not_numbers_error() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::LessEqual, 1),
+      Token::new(TokenKind::String("2".to_string()), 1),
+    ]);
+
+    let err = interpreted.unwrap_err();
+    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+      1,
+      "<=".to_string(),
+      "Number".to_string(),
+      "String".to_string()
+    ));
   }
 }
