@@ -56,13 +56,28 @@ impl Interpreter {
     let right = self.interpret(right)?;
 
     Ok(match (operator.kind(), &left, &right) {
+      (TokenKind::EqualEqual, val1, val2) => Ok(Value::Boolean(self.are_equal(val1, val2))),
+      (TokenKind::BangEqual, val1, val2) => Ok(Value::Boolean(!self.are_equal(val1, val2))),
       (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 + n2)),
       (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 - n2)),
       (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 * n2)),
       (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 / n2)),
+      (TokenKind::Less, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 < n2)),
+      (TokenKind::LessEqual, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 <= n2)),
+      (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 > n2)),
+      (TokenKind::GreaterEqual, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 >= n2)),
       (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
       _ => panic!()
     })
+  }
+
+  fn are_equal(&self, val1: &Value, val2: &Value) -> bool {
+    match (val1, val2) {
+      (Value::Number(n1), Value::Number(n2)) => n1 == n2,
+      (Value::Boolean(b1), Value::Boolean(b2)) => b1 == b2,
+      (Value::String(s1), Value::String(s2)) => s1 == s2,
+      (val1, val2) => val1 == val2
+    }
   }
 
   fn is_truthy(&self, value: &Value) -> bool {
@@ -291,5 +306,197 @@ mod tests {
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(0.5))
+  }
+
+  #[test]
+  fn eval_1_lower_than_2_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Less, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_2_lower_than_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("2".to_string()), 1),
+      Token::new(TokenKind::Less, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_lower_than_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Less, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_lower_equal_than_2_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::LessEqual, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_1_lower_equal_than_1_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::LessEqual, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_2_lower_equal_than_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("2".to_string()), 1),
+      Token::new(TokenKind::LessEqual, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_greater_than_2_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Greater, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_greater_than_1_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Greater, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_2_greater_than_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("2".to_string()), 1),
+      Token::new(TokenKind::Greater, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_1_greater_equal_than_2_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::GreaterEqual, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_greater_equal_than_1_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::GreaterEqual, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_2_greater_equal_than_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("2".to_string()), 1),
+      Token::new(TokenKind::GreaterEqual, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_1_equal_1_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::EqualEqual, 1),
+      Token::new(TokenKind::Number("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
+  }
+
+  #[test]
+  fn eval_1_equal_string_1_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::EqualEqual, 1),
+      Token::new(TokenKind::String("1".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_holu_not_equal_holu_returns_false() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::String("holu".to_string()), 1),
+      Token::new(TokenKind::BangEqual, 1),
+      Token::new(TokenKind::String("holu".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(false))
+  }
+
+  #[test]
+  fn eval_1_not_equal_2_returns_true() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::BangEqual, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Boolean(true))
   }
 }
