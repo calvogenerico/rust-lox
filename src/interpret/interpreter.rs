@@ -58,6 +58,8 @@ impl Interpreter {
     Ok(match (operator.kind(), &left, &right) {
       (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 + n2)),
       (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 - n2)),
+      (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 * n2)),
+      (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 / n2)),
       (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
       _ => panic!()
     })
@@ -265,5 +267,29 @@ mod tests {
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::String("foobar".to_string()))
+  }
+
+  #[test]
+  fn eval_a_star_between_numbers_multiplies() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("7".to_string()), 1),
+      Token::new(TokenKind::Star, 1),
+      Token::new(TokenKind::Number("3".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Number(21.0))
+  }
+
+  #[test]
+  fn eval_a_slash_between_numbers_divides() {
+    let interpreted = interpret_tokens(vec![
+      Token::new(TokenKind::Number("1".to_string()), 1),
+      Token::new(TokenKind::Slash, 1),
+      Token::new(TokenKind::Number("2".to_string()), 1),
+    ]);
+    let res = interpreted.unwrap();
+
+    assert_eq!(res, Value::Number(0.5))
   }
 }
