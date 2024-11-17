@@ -566,5 +566,11 @@ mod tests {
 
     assert_eq!(ast, "(+ 1.0 1.0)\n(+ 2.0 2.0)");
   }
+
+  #[test]
+  fn can_parse_variables() {
+    // I need to make code to parse global variable assignment
+    assert!(false)
+  }
 }
 
