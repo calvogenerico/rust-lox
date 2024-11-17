@@ -13,6 +13,7 @@ use crate::interpret::interpreter::Interpreter;
 use crate::parse::expr::Expr;
 use crate::parse::parse_error::ParseError;
 use crate::parse::print_ast::PrintAst;
+use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 
 #[derive(Debug, Parser)] // requires `derive` feature
@@ -37,6 +38,10 @@ enum Commands {
   },
   #[command(arg_required_else_help = true)]
   Evaluate {
+    file_path: String,
+  },
+  #[command(arg_required_else_help = true)]
+  Run {
     file_path: String,
   },
 }
@@ -113,24 +118,42 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
       let ast = parse(tokens)?;
       let printer = PrintAst::new();
 
-      Ok(printer.print(&ast))
+      Ok(printer.print_stmts(&ast))
     }
     Commands::Evaluate { file_path } => {
       let mut input = File::open(&file_path)?;
       let tokens = scan(&mut input)?;
-      let ast = parse(tokens)?;
-      Ok(interpret(ast)?)
+      let vec = parse(tokens)?;
+      let ast = vec.first().unwrap();
+      let expr = match ast {
+        Stmt::Expr(expr) => expr,
+        Stmt::Print(expr) => expr
+      };
+      
+      Ok(interpret_expr(expr)?)
+    },
+    Commands::Run { file_path } => {
+      let mut input = File::open(&file_path)?;
+      let tokens = scan(&mut input)?;
+      let stmts = parse(tokens)?;
+      Ok(interpret(stmts)?)
     }
   }
 }
 
-fn interpret(expr: Expr) -> Result<String, InterpreterError> {
+fn interpret_expr(expr: &Expr) -> Result<String, InterpreterError> {
   let interpreter = Interpreter::new();
-  interpreter.interpret(&expr)
+  interpreter.interpret_expr(&expr)
     .map(|v| v.to_string() )
 }
 
-fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
+fn interpret(stmts: Vec<Stmt>) -> Result<String, InterpreterError> {
+  let mut interpreter = Interpreter::new();
+  interpreter.interpret_stmts(&stmts)?;
+  Ok(String::new())
+}
+
+fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, ParseError> {
   let parser = LoxParser::new(tokens);
   parser.parse()
 }
