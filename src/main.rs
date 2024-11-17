@@ -24,12 +24,12 @@ struct Cli {
 enum Commands {
   #[command(arg_required_else_help = true)]
   Tokenize {
-    file_path: Option<String>,
+    file_path: String,
   },
 
   #[command(arg_required_else_help = true)]
   Parse {
-    file_path: Option<String>,
+    file_path: String,
   },
   #[command(arg_required_else_help = true)]
   Evaluate {
@@ -41,7 +41,7 @@ fn main() -> Result<ExitCode, Error> {
   let args = Cli::parse();
 
   let code = match args.command {
-    Commands::Tokenize { file_path: Some(path) } => {
+    Commands::Tokenize { file_path: path } => {
       let mut input = File::open(&path)?;
       let scanner = Scanner::new(&mut input);
       let (tokens, errors) = scanner.scan_tokens();
@@ -60,7 +60,7 @@ fn main() -> Result<ExitCode, Error> {
         ExitCode::from(65)
       }
     },
-    Commands::Parse { file_path: Some(path) } => {
+    Commands::Parse { file_path: path } => {
       let mut input = File::open(&path)?;
       let scanner = Scanner::new(&mut input);
       let (tokens, errors) = scanner.scan_tokens();
@@ -100,8 +100,7 @@ fn main() -> Result<ExitCode, Error> {
       println!("{}", value.to_string());
 
       ExitCode::from(0)
-    },
-    _ => ExitCode::from(1)
+    }
   };
   Ok(code)
 }
