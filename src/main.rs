@@ -4,12 +4,16 @@ mod interpret;
 
 use std::fs::File;
 use std::process::ExitCode;
-use clap::{Error, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 use scan::scanner::Scanner;
 use parse::parser::LoxParser;
+use crate::interpret::error::InterpreterError;
 use crate::interpret::interpreter::Interpreter;
+use crate::parse::expr::Expr;
+use crate::parse::parse_error::ParseError;
 use crate::parse::print_ast::PrintAst;
+use crate::scan::token::Token;
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "git")]
@@ -37,70 +41,113 @@ enum Commands {
   },
 }
 
-fn main() -> Result<ExitCode, Error> {
-  let args = Cli::parse();
+struct ReportError {
+  exit_code: u8,
+  errors: Vec<String>
+}
 
-  let code = match args.command {
-    Commands::Tokenize { file_path: path } => {
-      let mut input = File::open(&path)?;
-      let scanner = Scanner::new(&mut input);
-      let (tokens, errors) = scanner.scan_tokens();
+// fn zzz<A, B>(f: impl Fn() -> Result<>) -> ExitCode {
+//   if let Err(e) = f() {
+//     for msg in e.errors {
+//       eprintln!({}, msg);
+//     }
+//
+//     return ExitCode::from(e.exit_code)
+//   }
+//   ExitCode::from(0);
+// }
 
-      for error in &errors {
-        eprintln!("{error}")
-      }
 
-      for token in tokens {
-        println!("{}", token.to_string());
-      }
+impl From<Vec<String>> for ReportError {
+  fn from(value: Vec<String>) -> Self {
+    ReportError {
+      errors: value,
+      exit_code: 64
+    }
+  }
+}
 
-      if errors.len() == 0 {
-        ExitCode::from(0)
-      } else {
-        ExitCode::from(65)
-      }
-    },
-    Commands::Parse { file_path: path } => {
-      let mut input = File::open(&path)?;
-      let scanner = Scanner::new(&mut input);
-      let (tokens, errors) = scanner.scan_tokens();
+impl From<std::io::Error> for ReportError {
+  fn from(_value: std::io::Error) -> Self {
+    ReportError {
+      errors: vec!["Cannot read source file".to_string()],
+      exit_code: 1
+    }
+  }
+}
 
-      let parser = LoxParser::new(tokens);
-      let ast = parser.parse();
+impl From<ParseError> for ReportError {
+  fn from(value: ParseError) -> Self {
+    ReportError {
+      exit_code: 65,
+      errors: vec![value.to_string()]
+    }
+  }
+}
 
-      if !errors.is_empty() || ast.is_err() {
-        for error in &errors {
-          eprintln!("{error}")
-        }
-        eprintln!("{}", ast.unwrap_err().to_string());
-        return Ok(ExitCode::from(65))
-      }
+impl From<InterpreterError> for ReportError {
+  fn from(value: InterpreterError) -> Self {
+    ReportError {
+      exit_code: 70,
+      errors: vec![value.to_string()]
+    }
+  }
+}
 
-      let repr = PrintAst::new().print(&ast.unwrap());
-      println!("{}", &repr);
+fn scan(input: &mut File) -> Result<Vec<Token>, ReportError> {
+  let scanner = Scanner::new(input);
+  Ok(scanner.scan_tokens()?)
+}
 
-      ExitCode::from(0)
-    },
+fn exec_main(cli: Cli) -> Result<String, ReportError> {
+  match cli.command {
+    Commands::Tokenize { file_path } => {
+      let mut input = File::open(&file_path)?;
+      let tokens = scan(&mut input)?;
+      let strings = tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>();
+      Ok(strings.join("\n"))
+    }
+    Commands::Parse { file_path } => {
+      let mut input = File::open(&file_path)?;
+      let tokens = scan(&mut input)?;
+      let ast = parse(tokens)?;
+      let printer = PrintAst::new();
+
+      Ok(printer.print(&ast))
+    }
     Commands::Evaluate { file_path } => {
       let mut input = File::open(&file_path)?;
-      let scanner = Scanner::new(&mut input);
-      let (tokens, _errors) = scanner.scan_tokens();
+      let tokens = scan(&mut input)?;
+      let ast = parse(tokens)?;
+      Ok(interpret(ast)?)
+    }
+  }
+}
 
-      let parser = LoxParser::new(tokens);
-      let ast = parser.parse().unwrap();
+fn interpret(expr: Expr) -> Result<String, InterpreterError> {
+  let interpreter = Interpreter::new();
+  interpreter.interpret(&expr)
+    .map(|v| v.to_string() )
+}
 
-      let interpreter = Interpreter::new();
-      let res = interpreter.interpret(&ast);
-      if res.is_err() {
-        eprintln!("{}", res.unwrap_err().to_string());
-        return Ok(ExitCode::from(70));
-      }
-      let value = res.unwrap();
+fn parse(tokens: Vec<Token>) -> Result<Expr, ParseError> {
+  let parser = LoxParser::new(tokens);
+  parser.parse()
+}
 
-      println!("{}", value.to_string());
+fn main() -> ExitCode {
+  let args = Cli::parse();
 
+  match exec_main(args) {
+    Ok(msg) => {
+      println!("{}", msg);
       ExitCode::from(0)
     }
-  };
-  Ok(code)
+    Err(report) => {
+      for msg in report.errors {
+        eprintln!("{}", msg)
+      }
+      ExitCode::from(report.exit_code)
+    }
+  }
 }

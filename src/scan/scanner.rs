@@ -44,7 +44,7 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
   }
 
-  pub fn scan_tokens(mut self) -> (Vec<Token>, Vec<String>) {
+  pub fn scan_tokens(mut self) -> Result<Vec<Token>, Vec<String>> {
     while !self.eof() {
       let next_char = self.take_char();
       if next_char.is_some() {
@@ -53,8 +53,12 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
 
     self.push_token_current_line(TokenKind::Eof);
-
-    (self.tokens, self.errors)
+    
+    if self.errors.len() > 0 {
+      Err(self.errors)
+    } else {
+      Ok(self.tokens)
+    }
   }
 
   fn eof(&self) -> bool {
@@ -233,17 +237,16 @@ mod tests {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
     let scan = Scanner::new(&mut cursor);
-    let (tokens, errors) = scan.scan_tokens();
-
-    assert_eq!(errors.len(), 0);
+    let tokens = scan.scan_tokens().unwrap();
+    
     tokens
   }
 
-  fn scan_program_with_errors(code: &str) -> (Vec<Token>, Vec<String>) {
+  fn scan_program_with_errors(code: &str) -> Vec<String> {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
     let scan = Scanner::new(&mut cursor);
-    scan.scan_tokens()
+    scan.scan_tokens().unwrap_err()
   }
 
 
@@ -669,22 +672,16 @@ mod tests {
 
   #[test]
   fn dollar_sign_produces_an_error() {
-    let (tokens, errors) = scan_program_with_errors("$");
+    let errors = scan_program_with_errors("$");
 
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Eof, 1)
-    ]);
     assert_eq!(errors, vec!["[line 1] Error: Unexpected character: $"])
   }
 
 
   #[test]
   fn errors_track_line_number() {
-    let (tokens, errors) = scan_program_with_errors("\n@");
+    let errors = scan_program_with_errors("\n@");
 
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Eof, 2)
-    ]);
     assert_eq!(errors, vec!["[line 2] Error: Unexpected character: @"])
   }
 
@@ -716,11 +713,7 @@ mod tests {
 
   #[test]
   fn string_not_terminated_produce_an_error() {
-    let (tokens, errors) = scan_program_with_errors("\"bar\" \"unterminated");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::String("bar".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    let errors = scan_program_with_errors("\"bar\" \"unterminated");
     assert_eq!(errors, vec!["[line 1] Error: Unterminated string."]);
   }
 }
