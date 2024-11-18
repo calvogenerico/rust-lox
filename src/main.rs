@@ -127,9 +127,10 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
       let ast = vec.first().unwrap();
       let expr = match ast {
         Stmt::Expr(expr) => expr,
-        Stmt::Print(expr) => expr
+        Stmt::Print(expr) => expr,
+        _ => panic!("Evaluate can only evaluate a single expression")
       };
-      
+
       Ok(interpret_expr(expr)?)
     },
     Commands::Run { file_path } => {

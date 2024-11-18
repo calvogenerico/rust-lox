@@ -4,6 +4,6 @@ use thiserror::Error;
 pub enum ParseError {
   #[error("Malformed expression [line {0}]: {1}")]
   MalformedExpression(usize, String),
-  #[error("Missing end of file")]
-  MissingEOF
+  #[error("Unexpected end of file")]
+  UnexpectedEndOfFile,
 }

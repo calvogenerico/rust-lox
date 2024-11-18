@@ -29,6 +29,8 @@ impl LoxParser {
   fn statement(&mut self) -> Result<Stmt, ParseError> {
     let stmt = if self.advance_if_match(&[TokenKind::Print]).is_some() {
       Stmt::Print(self.expression()?)
+    } else if self.advance_if_match(&[TokenKind::Var]).is_some() {
+      self.var_declaration()?
     } else {
       Stmt::Expr(self.expression()?)
     };
@@ -36,6 +38,24 @@ impl LoxParser {
     self.consume(TokenKind::Semicolon)?;
 
     Ok(stmt)
+  }
+
+  fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+    let token = self.next_token()?;
+    let line = token.line();
+    if let TokenKind::Identifier(name) = token.kind() {
+      let name = name.clone();
+      let stmt = if self.peek_kind().is_some_and(|k| *k == TokenKind::Equal) {
+        self.consume(TokenKind::Equal)?;
+        let expr = self.expression()?;
+        Stmt::Var(name, expr, line)
+      } else {
+        Stmt::Var(name, Expr::LiteralNil, line)
+      };
+      Ok(stmt)
+    } else {
+      Err(ParseError::MalformedExpression(line, format!("Expected identifier, got {}", token.symbol())))
+    }
   }
 
   fn expression(&mut self) -> Result<Expr, ParseError> {
@@ -104,13 +124,7 @@ impl LoxParser {
   }
 
   fn primary(&mut self) -> Result<Expr, ParseError> {
-    let maybe_token = self.next_token();
-    // let maybe_kind = maybe_token.map(|t| t.kind());
-    if maybe_token.is_none() {
-      return Err(ParseError::MissingEOF);
-    }
-
-    let token = maybe_token.unwrap().clone();
+    let token = self.next_token()?.clone();
 
     match token.kind() {
       TokenKind::Number(repr) => Ok(Expr::LiteralNumber { value: repr.parse().unwrap() }),
@@ -136,36 +150,42 @@ impl LoxParser {
     if let Some(token) = self.peek() {
       if options.iter().any(|opt| opt == token.kind()) {
         let res = Some(token.clone());
-        self.next_token();
+        self.current_pos += 1;
         return res;
       }
     }
     None
   }
 
-  fn next_token(&mut self) -> Option<&Token> {
+  fn next_token(&mut self) -> Result<&Token, ParseError> {
     let res = self.tokens.get(self.current_pos);
     self.current_pos += 1;
-    res
+    res.ok_or(ParseError::UnexpectedEndOfFile)
   }
 
   fn peek(&self) -> Option<&Token> {
     self.tokens.get(self.current_pos)
   }
 
+  fn peek_kind(&self) -> Option<&TokenKind> {
+    self.peek().map(|t| t.kind())
+  }
+
   fn is_at_end(&self) -> bool {
     self.peek().is_some_and(|t| *t.kind() == TokenKind::Eof)
   }
 
-  fn consume(&mut self, kind: TokenKind) -> Result<(), ParseError> {
-    if let Some(token) = self.next_token() {
-      if *token.kind() != kind {
-        return Err(ParseError::MalformedExpression(token.line(), format!("Expected {}, got {}", kind.symbol(), token.kind().symbol())));
-      }
-    } else {
-      return Err(ParseError::MissingEOF);
+  fn consume(&mut self, kind: TokenKind) -> Result<&Token, ParseError> {
+    let next = self.next_token()?;
+
+    if *next.kind() == kind {
+      return Ok(next);
     }
-    Ok(())
+
+    Err(ParseError::MalformedExpression(
+      next.line(),
+      format!("Expected {}, got {}", kind.symbol(), next.kind().symbol()),
+    ))
   }
 }
 
@@ -182,13 +202,15 @@ mod tests {
     LoxParser::new(tokens)
   }
 
-  fn parse_and_print_expr(tokens: Vec<Token>) -> String {
+  fn parse_and_print_expr(mut tokens: Vec<Token>) -> String {
+    tokens.push(Token::new(TokenKind::Semicolon, 1));
+    tokens.push(Token::new(TokenKind::Eof, 1));
     let parser = parser(tokens);
     let res = parser.parse().unwrap().pop().unwrap();
     let visitor = PrintAst {};
     match res {
       Stmt::Expr(expr) => { visitor.print_expr(&expr) }
-      Stmt::Print(_) => panic!("should not be this")
+      _ => panic!("should not be this")
     }
   }
 
@@ -548,20 +570,20 @@ mod tests {
 
   #[test]
   fn parse_print_stmt() {
-    let ast = parse_from_code("print 1");
+    let ast = parse_from_code("print 1;");
 
     assert_eq!(ast, "(print 1.0)");
   }
 
   #[test]
   fn parse_print_with_more_complex_expression_stmt() {
-    let ast = parse_from_code("print (1 + 2) > 0");
+    let ast = parse_from_code("print (1 + 2) > 0;");
 
     assert_eq!(ast, "(print (> (group (+ 1.0 2.0)) 0.0))");
   }
 
   #[test]
-  fn parse_multile_stmts() {
+  fn parse_multiple_stmts() {
     let ast = parse_from_code("1 + 1; 2 + 2;");
 
     assert_eq!(ast, "(+ 1.0 1.0)\n(+ 2.0 2.0)");
@@ -569,8 +591,14 @@ mod tests {
 
   #[test]
   fn can_parse_variables() {
-    // I need to make code to parse global variable assignment
-    assert!(false)
+    let ast = parse_from_code("var foo = 1;");
+    assert_eq!(ast, "(def_var `foo` 1.0)");
+  }
+
+  #[test]
+  fn can_parse_variables_not_initialized() {
+    let ast = parse_from_code("var foo;");
+    assert_eq!(ast, "(def_var `foo` nil)");
   }
 }
 

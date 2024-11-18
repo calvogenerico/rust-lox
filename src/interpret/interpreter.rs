@@ -48,6 +48,7 @@ impl Interpreter {
           let value = self.interpret_expr(expr)?;
           println!("{}", value.to_string());
         }
+        Stmt::Var(_, _, _) => panic!("not implemented")
       }
     }
     Ok(())
@@ -147,7 +148,7 @@ mod tests {
     let interpreter = Interpreter::new();
     match stmts.first().unwrap() {
       Stmt::Expr(expr) => { interpreter.interpret_expr(expr) }
-      Stmt::Print(_) => panic!("Should not be a print")
+      _ => panic!("should be an expr")
     }
   }
 
