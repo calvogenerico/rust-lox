@@ -31,6 +31,8 @@ impl PrintAst {
       Expr::Binary { left, operator, right } =>
         format!("({} {} {})", operator.kind().symbol(), self.print_expr(left), self.print_expr(right)),
       Expr::Group { expression } => format!("(group {})", self.print_expr(expression)),
+      Expr::Variable { name, .. } => format!("`{}`", name),
+      Expr::Assign { name, value , .. } => format!("(assign_var `{}` {})", name, self.print_expr(value))
     }
   }
 }

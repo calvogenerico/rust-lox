@@ -63,6 +63,8 @@ impl Interpreter {
       Expr::LiteralString { value } => Ok(Value::String(value.to_string())),
       Expr::Group { expression } => self.interpret_expr(expression),
       Expr::Binary { left, operator, right } => self.binary(left, operator, right)?,
+      Expr::Variable { .. } => unimplemented!(),
+      Expr::Assign { .. } => unimplemented!()
     }
   }
 

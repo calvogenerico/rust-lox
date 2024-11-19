@@ -32,7 +32,7 @@ impl LoxParser {
     } else if self.advance_if_match(&[TokenKind::Var]).is_some() {
       self.var_declaration()?
     } else {
-      Stmt::Expr(self.expression()?)
+      self.expression_stmt()?
     };
 
     self.consume(TokenKind::Semicolon)?;
@@ -58,8 +58,30 @@ impl LoxParser {
     }
   }
 
+  fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
+    Ok(Stmt::Expr(self.expression()?))
+  }
+
   fn expression(&mut self) -> Result<Expr, ParseError> {
-    self.equality()
+    self.assignment()
+  }
+
+  fn assignment(&mut self) -> Result<Expr, ParseError> {
+    let left = self.equality()?;
+
+    if let Some(TokenKind::Equal) = self.peek_kind() {
+      let token = self.next_token()?;
+      let equals_line = token.line();
+      let right = self.equality()?;
+
+      if let Expr::Variable { name, line } = left {
+        Ok(Expr::Assign { name, value: Box::new(right), line })
+      } else {
+        Err(ParseError::MalformedExpression(equals_line, "Invalid assignment target.".to_string()))
+      }
+    } else {
+      Ok(left)
+    }
   }
 
   fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -132,6 +154,7 @@ impl LoxParser {
       TokenKind::False => Ok(Expr::LiteralBool { value: false }),
       TokenKind::String(repr) => Ok(Expr::LiteralString { value: repr.to_string() }),
       TokenKind::Nil => Ok(Expr::LiteralNil),
+      TokenKind::Identifier(name) => Ok(Expr::Variable { name: name.clone(), line: token.line() }),
       TokenKind::LeftParen => {
         let res = self.expression()?;
 
@@ -599,6 +622,12 @@ mod tests {
   fn can_parse_variables_not_initialized() {
     let ast = parse_from_code("var foo;");
     assert_eq!(ast, "(def_var `foo` nil)");
+  }
+
+  #[test]
+  fn can_parse_re_assign_some_var() {
+    let ast = parse_from_code("var foo = 1;foo = 2;");
+    assert_eq!(ast, "(def_var `foo` 1.0)\n(assign_var `foo` 2.0)");
   }
 }
 

@@ -9,4 +9,6 @@ pub enum Expr {
   Unary { operator: Token, right: Box<Expr> },
   Group { expression: Box<Expr> },
   LiteralNil,
+  Variable{ name: String, line: usize },
+  Assign{ name: String, value: Box<Expr>, line: usize },
 }
