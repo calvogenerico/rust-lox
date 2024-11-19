@@ -1,12 +1,15 @@
-use crate::interpret::error::InterpreterError;
+use crate::interpret::environment::Environment;
+use crate::interpret::error::RuntimeError;
 use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
-pub struct Interpreter {}
+pub struct Interpreter {
+  env: Environment
+}
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
   Number(f64),
   Nil,
@@ -37,10 +40,12 @@ impl Value {
 
 impl Interpreter {
   pub fn new() -> Interpreter {
-    Interpreter {}
+    Interpreter {
+      env: Environment::new()
+    }
   }
 
-  pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<(), InterpreterError> {
+  pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
     for stmt in stmts {
       match stmt {
         Stmt::Expr(expr) => { self.interpret_expr(expr)?; },
@@ -48,52 +53,59 @@ impl Interpreter {
           let value = self.interpret_expr(expr)?;
           println!("{}", value.to_string());
         }
-        Stmt::Var(_, _, _) => panic!("not implemented")
+        Stmt::Var(name, expr, _) => {
+          let value = self.interpret_expr(expr)?;
+          self.env.define(name, value)
+        }
       }
     }
     Ok(())
   }
 
-  pub fn interpret_expr(&self, expr: &Expr) -> Result<Value, InterpreterError> {
+  pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
     match expr {
       Expr::LiteralNumber { value } => Ok(Value::Number(*value)),
       Expr::LiteralNil => Ok(Value::Nil),
       Expr::LiteralBool { value } => Ok(Value::Boolean(*value)),
-      Expr::Unary { operator, right } => self.unary(operator, right)?,
+      Expr::Unary { operator, right } => self.unary(operator, right),
       Expr::LiteralString { value } => Ok(Value::String(value.to_string())),
       Expr::Group { expression } => self.interpret_expr(expression),
-      Expr::Binary { left, operator, right } => self.binary(left, operator, right)?,
-      Expr::Variable { .. } => unimplemented!(),
-      Expr::Assign { .. } => unimplemented!()
+      Expr::Binary { left, operator, right } => self.binary(left, operator, right),
+      Expr::Variable { name, line } => self.env.get(name, *line).map(|v| v.clone()),
+      Expr::Assign { value, name, line } => {
+        let value = self.interpret_expr(value)?;
+        self.env.assign(name, value.clone(), *line)?;
+        Ok(value)
+      }
     }
   }
 
-  fn unary(&self, operator: &Token, right: &Expr) -> Result<Result<Value, InterpreterError>, InterpreterError> {
+  fn unary(&mut self, operator: &Token, right: &Expr) -> Result<Value, RuntimeError> {
     let value = self.interpret_expr(right)?;
     Ok(match (value, operator.kind()) {
-      (Value::Number(value), TokenKind::Minus) => Ok(Value::Number(-value)),
-      (val, TokenKind::Bang) => Ok(Value::Boolean(!self.is_truthy(&val))),
-      (value, TokenKind::Minus) => Err(InterpreterError::NotANumber(operator.line(), value.type_name().to_string())),
-      _ => Err(InterpreterError::InvalidExpression)
+      (Value::Number(value), TokenKind::Minus) => Value::Number(-value),
+      (val, TokenKind::Bang) => Value::Boolean(!self.is_truthy(&val)),
+      (value, TokenKind::Minus) => return Err(RuntimeError::NotANumber(operator.line(), value.type_name().to_string())),
+      _ => return Err(RuntimeError::InvalidExpression)
     })
   }
 
-  fn binary(&self, left: &Expr, operator: &Token, right: &Expr) -> Result<Result<Value, InterpreterError>, InterpreterError> {
+  fn binary(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<Value, RuntimeError> {
     let left = self.interpret_expr(left)?;
     let right = self.interpret_expr(right)?;
 
     Ok(match (operator.kind(), &left, &right) {
-      (TokenKind::EqualEqual, val1, val2) => Ok(Value::Boolean(self.are_equal(val1, val2))),
-      (TokenKind::BangEqual, val1, val2) => Ok(Value::Boolean(!self.are_equal(val1, val2))),
-      (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 + n2)),
-      (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 - n2)),
-      (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 * n2)),
-      (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => Ok(Value::Number(n1 / n2)),
-      (TokenKind::Less, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 < n2)),
-      (TokenKind::LessEqual, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 <= n2)),
-      (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 > n2)),
-      (TokenKind::GreaterEqual, Value::Number(n1), Value::Number(n2)) => Ok(Value::Boolean(n1 >= n2)),
-      (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Ok(Value::String(format!("{s1}{s2}"))),
+      (TokenKind::EqualEqual, val1, val2) => Value::Boolean(self.are_equal(val1, val2)),
+      (TokenKind::BangEqual, val1, val2) => Value::Boolean(!self.are_equal(val1, val2)),
+      (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 + n2),
+      (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 - n2),
+      (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 * n2),
+      (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 / n2),
+      (TokenKind::Less, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 < n2),
+      (TokenKind::LessEqual, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 <= n2),
+      (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 > n2),
+      (TokenKind::GreaterEqual, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 >= n2),
+      (TokenKind::Plus, Value::String(s1), Value::String(s2)) => Value::String(format!("{s1}{s2}")),
       (
         TokenKind::Greater
         | TokenKind::GreaterEqual
@@ -104,14 +116,14 @@ impl Interpreter {
         | TokenKind::Slash,
         val1,
         val2) =>
-        Err(InterpreterError::WrongBinaryOperationType(
+        return Err(RuntimeError::WrongBinaryOperationType(
           operator.line(),
           operator.kind().symbol(),
           val1.type_name().to_string(),
           val2.type_name().to_string()
         )),
 
-      _ => Err(InterpreterError::InvalidExpression)
+      _ => return Err(RuntimeError::InvalidExpression)
     })
   }
 
@@ -144,10 +156,10 @@ mod tests {
   use crate::scan::token::Token;
   use crate::scan::token_kind::TokenKind;
   use super::*;
-  fn interpret_expression(tokens: Vec<Token>) -> Result<Value, InterpreterError> {
+  fn interpret_expression(tokens: Vec<Token>) -> Result<Value, RuntimeError> {
     let tokens = tokens;
     let stmts = LoxParser::new(tokens).parse().unwrap();
-    let interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::new();
     match stmts.first().unwrap() {
       Stmt::Expr(expr) => { interpreter.interpret_expr(expr) }
       _ => panic!("should be an expr")
@@ -557,7 +569,7 @@ mod tests {
 
     let err = interpreted.unwrap_err();
 
-    assert_eq!(err, InterpreterError::NotANumber(1, "String".to_string()))
+    assert_eq!(err, RuntimeError::NotANumber(1, "String".to_string()))
   }
 
   #[test]
@@ -569,7 +581,7 @@ mod tests {
 
     let err = interpreted.unwrap_err();
 
-    assert_eq!(err, InterpreterError::NotANumber(1, "nil".to_string()))
+    assert_eq!(err, RuntimeError::NotANumber(1, "nil".to_string()))
   }
 
   #[test]
@@ -581,7 +593,7 @@ mod tests {
 
     let err = interpreted.unwrap_err();
 
-    assert_eq!(err, InterpreterError::NotANumber(1, "Boolean".to_string()))
+    assert_eq!(err, RuntimeError::NotANumber(1, "Boolean".to_string()))
   }
 
   #[test]
@@ -593,7 +605,7 @@ mod tests {
     ]);
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "+".to_string(),
       "Number".to_string(),
@@ -608,7 +620,7 @@ mod tests {
 
     let err = interpreted.unwrap_err();
 
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "+".to_string(),
       "Boolean".to_string(),
@@ -625,7 +637,7 @@ mod tests {
     ]);
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "+".to_string(),
       "Number".to_string(),
@@ -642,7 +654,7 @@ mod tests {
     ]);
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "<=".to_string(),
       "Number".to_string(),
@@ -659,7 +671,7 @@ mod tests {
     ]);
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "*".to_string(),
       "Number".to_string(),
@@ -676,7 +688,7 @@ mod tests {
     ]);
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, InterpreterError::WrongBinaryOperationType(
+    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
       "/".to_string(),
       "Number".to_string(),

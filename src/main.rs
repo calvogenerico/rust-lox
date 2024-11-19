@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 
 use scan::scanner::Scanner;
 use parse::parser::LoxParser;
-use crate::interpret::error::InterpreterError;
+use crate::interpret::error::RuntimeError;
 use crate::interpret::interpreter::Interpreter;
 use crate::parse::expr::Expr;
 use crate::parse::parse_error::ParseError;
@@ -90,8 +90,8 @@ impl From<ParseError> for ReportError {
   }
 }
 
-impl From<InterpreterError> for ReportError {
-  fn from(value: InterpreterError) -> Self {
+impl From<RuntimeError> for ReportError {
+  fn from(value: RuntimeError) -> Self {
     ReportError {
       exit_code: 70,
       errors: vec![value.to_string()]
@@ -142,13 +142,13 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
   }
 }
 
-fn interpret_expr(expr: &Expr) -> Result<String, InterpreterError> {
-  let interpreter = Interpreter::new();
+fn interpret_expr(expr: &Expr) -> Result<String, RuntimeError> {
+  let mut interpreter = Interpreter::new();
   interpreter.interpret_expr(&expr)
     .map(|v| v.to_string() )
 }
 
-fn interpret(stmts: Vec<Stmt>) -> Result<String, InterpreterError> {
+fn interpret(stmts: Vec<Stmt>) -> Result<String, RuntimeError> {
   let mut interpreter = Interpreter::new();
   interpreter.interpret_stmts(&stmts)?;
   Ok(String::new())
