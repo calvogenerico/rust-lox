@@ -675,5 +675,11 @@ mod tests {
     let ast = parse_from_code("{ 1 + 2; }");
     assert_eq!(ast, "(block_scope (+ 1.0 2.0))");
   }
+
+  #[test]
+  fn can_parse_scopes_between_stmts() {
+    let ast = parse_from_code("nil; { 1 + 2; } 3;");
+    assert_eq!(ast, "nil\n(block_scope (+ 1.0 2.0))\n3.0");
+  }
 }
 
