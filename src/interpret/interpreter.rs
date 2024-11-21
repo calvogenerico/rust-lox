@@ -45,21 +45,27 @@ impl Interpreter {
     }
   }
 
-  pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
+  pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
+    let mut last_value: Value = Value::Nil;
     for stmt in stmts {
-      match stmt {
-        Stmt::Expr(expr) => { self.interpret_expr(expr)?; },
+      let value = match stmt {
+        Stmt::Expr(expr) => {
+          self.interpret_expr(expr)?
+        },
         Stmt::Print(expr) => {
           let value = self.interpret_expr(expr)?;
           println!("{}", value.to_string());
+          value
         }
         Stmt::Var(name, expr, _) => {
           let value = self.interpret_expr(expr)?;
-          self.env.define(name, value)
+          self.env.define(name, value.clone());
+          value
         }
-      }
+      };
+      last_value = value;
     }
-    Ok(())
+    Ok(last_value)
   }
 
   pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
@@ -153,24 +159,21 @@ impl Interpreter {
 mod tests {
   use std::io::Cursor;
   use crate::parse::parser::LoxParser;
-  use crate::parse::stmt::Stmt;
   use crate::scan::scanner::Scanner;
   use super::*;
-  fn interpret_expression(src: &str) -> Result<Value, RuntimeError> {
+
+  fn interpret_program(src: &str) -> Result<Value, RuntimeError> {
     let mut cursor = Cursor::new(src);
     let scanner = Scanner::new(&mut cursor);
     let tokens = scanner.scan_tokens().unwrap();
     let stmts = LoxParser::new(tokens).parse().unwrap();
     let mut interpreter = Interpreter::new();
-    match stmts.first().unwrap() {
-      Stmt::Expr(expr) => { interpreter.interpret_expr(expr) }
-      _ => panic!("should be an expr")
-    }
+    interpreter.interpret_stmts(&stmts)
   }
 
   #[test]
   fn eval_number_1() {
-    let interpreted = interpret_expression("1;");
+    let interpreted = interpret_program("1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(1f64))
@@ -178,7 +181,7 @@ mod tests {
 
   #[test]
   fn eval_number_2() {
-    let interpreted = interpret_expression("2;");
+    let interpreted = interpret_program("2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(2f64))
@@ -186,7 +189,7 @@ mod tests {
 
   #[test]
   fn eval_nil() {
-    let interpreted = interpret_expression("nil;");
+    let interpreted = interpret_program("nil;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Nil)
@@ -194,7 +197,7 @@ mod tests {
 
   #[test]
   fn eval_true() {
-    let interpreted = interpret_expression("true;");
+    let interpreted = interpret_program("true;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -202,7 +205,7 @@ mod tests {
 
   #[test]
   fn eval_false() {
-    let interpreted = interpret_expression("false;");
+    let interpreted = interpret_program("false;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -210,7 +213,7 @@ mod tests {
 
   #[test]
   fn eval_minus_one() {
-    let interpreted = interpret_expression("-1;");
+    let interpreted = interpret_program("-1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(-1.0))
@@ -218,7 +221,7 @@ mod tests {
 
   #[test]
   fn eval_minus_string() {
-    let interpreted = interpret_expression("\"foo\";");
+    let interpreted = interpret_program("\"foo\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::String("foo".to_string()))
@@ -226,7 +229,7 @@ mod tests {
 
   #[test]
   fn eval_not_true_returns_false() {
-    let interpreted = interpret_expression("!true;");
+    let interpreted = interpret_program("!true;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -234,7 +237,7 @@ mod tests {
 
   #[test]
   fn eval_not_false_returns_true() {
-    let interpreted = interpret_expression("!false;");
+    let interpreted = interpret_program("!false;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -243,7 +246,7 @@ mod tests {
   #[test]
   fn eval_not_a_positive_number_returns_false() {
     // any number is truthy
-    let interpreted = interpret_expression("!1.0;");
+    let interpreted = interpret_program("!1.0;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -252,7 +255,7 @@ mod tests {
   #[test]
   fn eval_not_zero_returns_false() {
     // any number is truthy
-    let interpreted = interpret_expression("!0;");
+    let interpreted = interpret_program("!0;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -260,7 +263,7 @@ mod tests {
 
   #[test]
   fn eval_not_nil_returns_true() {
-    let interpreted = interpret_expression("!nil;");
+    let interpreted = interpret_program("!nil;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -268,7 +271,7 @@ mod tests {
 
   #[test]
   fn eval_a_group_returns_inner_expr() {
-    let interpreted = interpret_expression("(1);");
+    let interpreted = interpret_program("(1);");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(1.0))
@@ -276,7 +279,7 @@ mod tests {
 
   #[test]
   fn eval_an_addition_returns_the_result() {
-    let interpreted = interpret_expression("1 + 2;");
+    let interpreted = interpret_program("1 + 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(3.0))
@@ -284,7 +287,7 @@ mod tests {
 
   #[test]
   fn eval_a_subtraction_returns_the_result() {
-    let interpreted = interpret_expression("5 - 1;");
+    let interpreted = interpret_program("5 - 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(4.0))
@@ -292,7 +295,7 @@ mod tests {
 
   #[test]
   fn eval_a_subtraction_can_return_negative_number() {
-    let interpreted = interpret_expression("5 - 12;");
+    let interpreted = interpret_program("5 - 12;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(-7.0))
@@ -300,7 +303,7 @@ mod tests {
 
   #[test]
   fn eval_a_plus_between_strings_concatenate_strings() {
-    let interpreted = interpret_expression("\"foo\" + \"bar\";");
+    let interpreted = interpret_program("\"foo\" + \"bar\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::String("foobar".to_string()))
@@ -308,7 +311,7 @@ mod tests {
 
   #[test]
   fn eval_a_star_between_numbers_multiplies() {
-    let interpreted = interpret_expression("7 * 3;");
+    let interpreted = interpret_program("7 * 3;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(21.0))
@@ -316,7 +319,7 @@ mod tests {
 
   #[test]
   fn eval_a_slash_between_numbers_divides() {
-    let interpreted = interpret_expression("1 / 2;");
+    let interpreted = interpret_program("1 / 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(0.5))
@@ -324,7 +327,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_than_2_returns_true() {
-    let interpreted = interpret_expression("1 < 2;");
+    let interpreted = interpret_program("1 < 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -332,7 +335,7 @@ mod tests {
 
   #[test]
   fn eval_2_lower_than_1_returns_false() {
-    let interpreted = interpret_expression("2 < 1;");
+    let interpreted = interpret_program("2 < 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -340,7 +343,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_than_1_returns_false() {
-    let interpreted = interpret_expression("1 < 1;");
+    let interpreted = interpret_program("1 < 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -348,7 +351,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_equal_than_2_returns_true() {
-    let interpreted = interpret_expression("1 <= 2;");
+    let interpreted = interpret_program("1 <= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -356,7 +359,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_equal_than_1_returns_true() {
-    let interpreted = interpret_expression("1 <= 1;");
+    let interpreted = interpret_program("1 <= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -364,7 +367,7 @@ mod tests {
 
   #[test]
   fn eval_2_lower_equal_than_1_returns_false() {
-    let interpreted = interpret_expression("2 <= 1;");
+    let interpreted = interpret_program("2 <= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -372,7 +375,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_than_2_returns_true() {
-    let interpreted = interpret_expression("1 >= 2;");
+    let interpreted = interpret_program("1 >= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -380,7 +383,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_than_1_returns_true() {
-    let interpreted = interpret_expression("1 > 1;");
+    let interpreted = interpret_program("1 > 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -388,7 +391,7 @@ mod tests {
 
   #[test]
   fn eval_2_greater_than_1_returns_false() {
-    let interpreted = interpret_expression("2 > 1;");
+    let interpreted = interpret_program("2 > 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -396,7 +399,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_equal_than_2_returns_true() {
-    let interpreted = interpret_expression("1 >= 2;");
+    let interpreted = interpret_program("1 >= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -404,7 +407,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_equal_than_1_returns_true() {
-    let interpreted = interpret_expression("1 >= 1;");
+    let interpreted = interpret_program("1 >= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -412,7 +415,7 @@ mod tests {
 
   #[test]
   fn eval_2_greater_equal_than_1_returns_false() {
-    let interpreted = interpret_expression("2 >= 1;");
+    let interpreted = interpret_program("2 >= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -420,7 +423,7 @@ mod tests {
 
   #[test]
   fn eval_1_equal_1_returns_true() {
-    let interpreted = interpret_expression("1 == 1;");
+    let interpreted = interpret_program("1 == 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -428,7 +431,7 @@ mod tests {
 
   #[test]
   fn eval_1_equal_string_1_returns_false() {
-    let interpreted = interpret_expression("1 == \"1\";");
+    let interpreted = interpret_program("1 == \"1\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -436,7 +439,7 @@ mod tests {
   //
   #[test]
   fn eval_holu_not_equal_holu_returns_false() {
-    let interpreted = interpret_expression("\"holu\" != \"holu\";");
+    let interpreted = interpret_program("\"holu\" != \"holu\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -444,7 +447,7 @@ mod tests {
 
   #[test]
   fn eval_1_not_equal_2_returns_true() {
-    let interpreted = interpret_expression("1 != 2;");
+    let interpreted = interpret_program("1 != 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -452,7 +455,7 @@ mod tests {
 
   #[test]
   fn eval_minus_string_returns_error() {
-    let interpreted = interpret_expression("-\"foo\";");
+    let interpreted = interpret_program("-\"foo\";");
 
     let err = interpreted.unwrap_err();
 
@@ -461,7 +464,7 @@ mod tests {
 
   #[test]
   fn eval_minus_nil_returns_error() {
-    let interpreted = interpret_expression("-nil;");
+    let interpreted = interpret_program("-nil;");
 
     let err = interpreted.unwrap_err();
 
@@ -470,7 +473,7 @@ mod tests {
 
   #[test]
   fn eval_minus_true_returns_error() {
-    let interpreted = interpret_expression("-true;");
+    let interpreted = interpret_program("-true;");
 
     let err = interpreted.unwrap_err();
 
@@ -479,7 +482,7 @@ mod tests {
 
   #[test]
   fn eval_aditions_fails_if_one_is_a_bool() {
-    let interpreted = interpret_expression("1 + true;");
+    let interpreted = interpret_program("1 + true;");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -489,7 +492,7 @@ mod tests {
       "Boolean".to_string()
     ));
 
-    let interpreted = interpret_expression("true + 1;");
+    let interpreted = interpret_program("true + 1;");
 
     let err = interpreted.unwrap_err();
 
@@ -503,7 +506,7 @@ mod tests {
 
   #[test]
   fn eval_addition_between_number_and_string_fails() {
-    let interpreted = interpret_expression("1 + \"2\";");
+    let interpreted = interpret_program("1 + \"2\";");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -516,7 +519,7 @@ mod tests {
 
   #[test]
   fn eval_comparisson_between_not_numbers_error() {
-    let interpreted = interpret_expression("1 <= \"2\";");
+    let interpreted = interpret_program("1 <= \"2\";");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -529,8 +532,8 @@ mod tests {
 
   #[test]
   fn eval_multiplication_between_number_and_string_error() {
-    let interpreted = interpret_expression("1 * \"2\";");
-  
+    let interpreted = interpret_program("1 * \"2\";");
+
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
@@ -539,11 +542,11 @@ mod tests {
       "String".to_string()
     ));
   }
-  
+
   #[test]
   fn eval_slash_between_number_and_string_error() {
-    let interpreted = interpret_expression("1 / \"2\";");
-  
+    let interpreted = interpret_program("1 / \"2\";");
+
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
@@ -551,5 +554,37 @@ mod tests {
       "Number".to_string(),
       "String".to_string()
     ));
+  }
+
+  #[test]
+  fn assign_variable_and_return_variables_returns_the_value_of_the_variable() {
+    let interpreted = interpret_program("var a = \"success\"; a;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::String("success".to_string()));
+  }
+
+  #[test]
+  fn re_assign_variable_saves_last_value() {
+    let interpreted = interpret_program("var a = 1; a = 2; a;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(2.0));
+  }
+
+  #[test]
+  fn re_define_variable_is_valid() {
+    let interpreted = interpret_program("var a = 1; var a = 2;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(2.0));
+  }
+
+  #[test]
+  fn access_undefined_variable_is_an_error() {
+    let interpreted = interpret_program("a + 1;");
+
+    let res = interpreted.unwrap_err();
+    assert_eq!(res, RuntimeError::UndefinedVariable(1, "a".to_string()));
   }
 }
