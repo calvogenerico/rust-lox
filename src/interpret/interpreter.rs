@@ -151,13 +151,15 @@ impl Interpreter {
 
 #[cfg(test)]
 mod tests {
+  use std::io::Cursor;
   use crate::parse::parser::LoxParser;
   use crate::parse::stmt::Stmt;
-  use crate::scan::token::Token;
-  use crate::scan::token_kind::TokenKind;
+  use crate::scan::scanner::Scanner;
   use super::*;
-  fn interpret_expression(tokens: Vec<Token>) -> Result<Value, RuntimeError> {
-    let tokens = tokens;
+  fn interpret_expression(src: &str) -> Result<Value, RuntimeError> {
+    let mut cursor = Cursor::new(src);
+    let scanner = Scanner::new(&mut cursor);
+    let tokens = scanner.scan_tokens().unwrap();
     let stmts = LoxParser::new(tokens).parse().unwrap();
     let mut interpreter = Interpreter::new();
     match stmts.first().unwrap() {
@@ -168,7 +170,7 @@ mod tests {
 
   #[test]
   fn eval_number_1() {
-    let interpreted = interpret_expression(vec![Token::new(TokenKind::Number("1.0".to_string()), 1)]);
+    let interpreted = interpret_expression("1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(1f64))
@@ -176,7 +178,7 @@ mod tests {
 
   #[test]
   fn eval_number_2() {
-    let interpreted = interpret_expression(vec![Token::new(TokenKind::Number("2.0".to_string()), 1)]);
+    let interpreted = interpret_expression("2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(2f64))
@@ -184,7 +186,7 @@ mod tests {
 
   #[test]
   fn eval_nil() {
-    let interpreted = interpret_expression(vec![Token::new(TokenKind::Nil, 1)]);
+    let interpreted = interpret_expression("nil;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Nil)
@@ -192,7 +194,7 @@ mod tests {
 
   #[test]
   fn eval_true() {
-    let interpreted = interpret_expression(vec![Token::new(TokenKind::True, 1)]);
+    let interpreted = interpret_expression("true;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -200,7 +202,7 @@ mod tests {
 
   #[test]
   fn eval_false() {
-    let interpreted = interpret_expression(vec![Token::new(TokenKind::False, 1)]);
+    let interpreted = interpret_expression("false;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -208,10 +210,7 @@ mod tests {
 
   #[test]
   fn eval_minus_one() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1)
-    ]);
+    let interpreted = interpret_expression("-1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(-1.0))
@@ -219,9 +218,7 @@ mod tests {
 
   #[test]
   fn eval_minus_string() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::String("foo".to_string()), 1)
-    ]);
+    let interpreted = interpret_expression("\"foo\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::String("foo".to_string()))
@@ -229,10 +226,7 @@ mod tests {
 
   #[test]
   fn eval_not_true_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::True, 1)
-    ]);
+    let interpreted = interpret_expression("!true;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -240,10 +234,7 @@ mod tests {
 
   #[test]
   fn eval_not_false_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::False, 1)
-    ]);
+    let interpreted = interpret_expression("!false;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -252,22 +243,16 @@ mod tests {
   #[test]
   fn eval_not_a_positive_number_returns_false() {
     // any number is truthy
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::Number("1.0".to_string()), 1)
-    ]);
+    let interpreted = interpret_expression("!1.0;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
   }
-
+  //
   #[test]
   fn eval_not_zero_returns_false() {
     // any number is truthy
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::Number("0".to_string()), 1)
-    ]);
+    let interpreted = interpret_expression("!0;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -275,10 +260,7 @@ mod tests {
 
   #[test]
   fn eval_not_nil_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::Nil, 1)
-    ]);
+    let interpreted = interpret_expression("!nil;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -286,11 +268,7 @@ mod tests {
 
   #[test]
   fn eval_a_group_returns_inner_expr() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::RightParen, 1)
-    ]);
+    let interpreted = interpret_expression("(1);");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(1.0))
@@ -298,11 +276,7 @@ mod tests {
 
   #[test]
   fn eval_an_addition_returns_the_result() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 + 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(3.0))
@@ -310,11 +284,7 @@ mod tests {
 
   #[test]
   fn eval_a_subtraction_returns_the_result() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("5".to_string()), 1),
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("5 - 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(4.0))
@@ -322,11 +292,7 @@ mod tests {
 
   #[test]
   fn eval_a_subtraction_can_return_negative_number() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("5".to_string()), 1),
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::Number("12".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("5 - 12;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(-7.0))
@@ -334,11 +300,7 @@ mod tests {
 
   #[test]
   fn eval_a_plus_between_strings_concatenate_strings() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::String("foo".to_string()), 1),
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::String("bar".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("\"foo\" + \"bar\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::String("foobar".to_string()))
@@ -346,11 +308,7 @@ mod tests {
 
   #[test]
   fn eval_a_star_between_numbers_multiplies() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("7".to_string()), 1),
-      Token::new(TokenKind::Star, 1),
-      Token::new(TokenKind::Number("3".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("7 * 3;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(21.0))
@@ -358,11 +316,7 @@ mod tests {
 
   #[test]
   fn eval_a_slash_between_numbers_divides() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Slash, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 / 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Number(0.5))
@@ -370,11 +324,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_than_2_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Less, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 < 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -382,11 +332,7 @@ mod tests {
 
   #[test]
   fn eval_2_lower_than_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("2".to_string()), 1),
-      Token::new(TokenKind::Less, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("2 < 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -394,11 +340,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_than_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Less, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 < 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -406,11 +348,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_equal_than_2_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::LessEqual, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 <= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -418,11 +356,7 @@ mod tests {
 
   #[test]
   fn eval_1_lower_equal_than_1_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::LessEqual, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 <= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -430,11 +364,7 @@ mod tests {
 
   #[test]
   fn eval_2_lower_equal_than_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("2".to_string()), 1),
-      Token::new(TokenKind::LessEqual, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("2 <= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -442,11 +372,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_than_2_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Greater, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 >= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -454,11 +380,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_than_1_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Greater, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 > 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -466,11 +388,7 @@ mod tests {
 
   #[test]
   fn eval_2_greater_than_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("2".to_string()), 1),
-      Token::new(TokenKind::Greater, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("2 > 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -478,11 +396,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_equal_than_2_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::GreaterEqual, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 >= 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -490,11 +404,7 @@ mod tests {
 
   #[test]
   fn eval_1_greater_equal_than_1_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::GreaterEqual, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 >= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -502,11 +412,7 @@ mod tests {
 
   #[test]
   fn eval_2_greater_equal_than_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("2".to_string()), 1),
-      Token::new(TokenKind::GreaterEqual, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("2 >= 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -514,11 +420,7 @@ mod tests {
 
   #[test]
   fn eval_1_equal_1_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::EqualEqual, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 == 1;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -526,23 +428,15 @@ mod tests {
 
   #[test]
   fn eval_1_equal_string_1_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::EqualEqual, 1),
-      Token::new(TokenKind::String("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 == \"1\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
   }
-
+  //
   #[test]
   fn eval_holu_not_equal_holu_returns_false() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::String("holu".to_string()), 1),
-      Token::new(TokenKind::BangEqual, 1),
-      Token::new(TokenKind::String("holu".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("\"holu\" != \"holu\";");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(false))
@@ -550,11 +444,7 @@ mod tests {
 
   #[test]
   fn eval_1_not_equal_2_returns_true() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::BangEqual, 1),
-      Token::new(TokenKind::Number("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 != 2;");
     let res = interpreted.unwrap();
 
     assert_eq!(res, Value::Boolean(true))
@@ -562,10 +452,7 @@ mod tests {
 
   #[test]
   fn eval_minus_string_returns_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::String("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("-\"foo\";");
 
     let err = interpreted.unwrap_err();
 
@@ -574,10 +461,7 @@ mod tests {
 
   #[test]
   fn eval_minus_nil_returns_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::Nil, 1),
-    ]);
+    let interpreted = interpret_expression("-nil;");
 
     let err = interpreted.unwrap_err();
 
@@ -586,10 +470,7 @@ mod tests {
 
   #[test]
   fn eval_minus_true_returns_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::True, 1),
-    ]);
+    let interpreted = interpret_expression("-true;");
 
     let err = interpreted.unwrap_err();
 
@@ -598,11 +479,7 @@ mod tests {
 
   #[test]
   fn eval_aditions_fails_if_one_is_a_bool() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::True, 1),
-    ]);
+    let interpreted = interpret_expression("1 + true;");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -612,11 +489,7 @@ mod tests {
       "Boolean".to_string()
     ));
 
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::True, 1),
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::Number("1".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("true + 1;");
 
     let err = interpreted.unwrap_err();
 
@@ -630,11 +503,7 @@ mod tests {
 
   #[test]
   fn eval_addition_between_number_and_string_fails() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::String("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 + \"2\";");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -647,11 +516,7 @@ mod tests {
 
   #[test]
   fn eval_comparisson_between_not_numbers_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::LessEqual, 1),
-      Token::new(TokenKind::String("2".to_string()), 1),
-    ]);
+    let interpreted = interpret_expression("1 <= \"2\";");
 
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
@@ -664,12 +529,8 @@ mod tests {
 
   #[test]
   fn eval_multiplication_between_number_and_string_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Star, 1),
-      Token::new(TokenKind::String("2".to_string()), 1),
-    ]);
-
+    let interpreted = interpret_expression("1 * \"2\";");
+  
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
@@ -678,15 +539,11 @@ mod tests {
       "String".to_string()
     ));
   }
-
+  
   #[test]
   fn eval_slash_between_number_and_string_error() {
-    let interpreted = interpret_expression(vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Slash, 1),
-      Token::new(TokenKind::String("2".to_string()), 1),
-    ]);
-
+    let interpreted = interpret_expression("1 / \"2\";");
+  
     let err = interpreted.unwrap_err();
     assert_eq!(err, RuntimeError::WrongBinaryOperationType(
       1,
