@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::parse::expr::Expr;
 use crate::parse::parse_error::ParseError;
 use crate::parse::stmt::Stmt;
@@ -7,37 +8,39 @@ use crate::scan::token_kind::TokenKind;
 
 pub struct LoxParser {
   tokens: Vec<Token>,
-  current_pos: usize,
+  current_pos: RefCell<usize>,
 }
 
 impl LoxParser {
   pub fn new(tokens: Vec<Token>) -> LoxParser {
     LoxParser {
       tokens,
-      current_pos: 0,
+      current_pos: RefCell::new(0),
     }
+  }
+
+  fn inc(&self) {
+    *self.current_pos.borrow_mut() += 1;
+  }
+
+  fn pos(&self) -> usize {
+    *self.current_pos.borrow()
   }
 
   pub fn parse(mut self) -> Result<Vec<Stmt>, ParseError> {
     let mut stmts = vec![];
     while !self.is_at_end() {
-      stmts.push(self.statement()?)
+      stmts.push(self.declaration()?)
     }
     Ok(stmts)
   }
 
-  fn statement(&mut self) -> Result<Stmt, ParseError> {
-    let stmt = if self.advance_if_match(&[TokenKind::Print]).is_some() {
-      Stmt::Print(self.expression()?)
-    } else if self.advance_if_match(&[TokenKind::Var]).is_some() {
-      self.var_declaration()?
+  fn declaration(&mut self) -> Result<Stmt, ParseError> {
+    if self.advance_if_match(&[TokenKind::Var]).is_some() {
+      self.var_declaration()
     } else {
-      self.expression_stmt()?
-    };
-
-    self.consume(TokenKind::Semicolon)?;
-
-    Ok(stmt)
+      self.statement()
+    }
   }
 
   fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
@@ -52,14 +55,46 @@ impl LoxParser {
       } else {
         Stmt::Var(name, Expr::LiteralNil, line)
       };
+      self.consume(TokenKind::Semicolon)?;
       Ok(stmt)
     } else {
       Err(ParseError::MalformedExpression(line, format!("Expected identifier, got {}", token.symbol())))
     }
   }
 
+  fn statement(&mut self) -> Result<Stmt, ParseError> {
+    let stmt = if self.advance_if_match(&[TokenKind::Print]).is_some() {
+      self.print_stmt()?
+    } else if self.advance_if_match(&[TokenKind::LeftBrace]).is_some() {
+      self.scope_block()?
+    } else {
+      self.expression_stmt()?
+    };
+    Ok(stmt)
+  }
+
+  fn print_stmt(&mut self) -> Result<Stmt, ParseError> {
+    let stmt = Stmt::Print(self.expression()?);
+    self.consume(TokenKind::RightBrace)?;
+    Ok(stmt)
+  }
+
+  fn scope_block(&mut self) -> Result<Stmt, ParseError> {
+    let mut stmts = vec![];
+
+    while self.peek_kind().is_some_and(|k| *k != TokenKind::RightBrace) {
+      stmts.push( self.declaration()?)
+    }
+
+    self.consume(TokenKind::RightBrace)?;
+
+    Ok(Stmt::ScopeBlock(stmts))
+  }
+
   fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
-    Ok(Stmt::Expr(self.expression()?))
+    let stmt = Stmt::Expr(self.expression()?);
+    self.consume(TokenKind::Semicolon)?;
+    Ok(stmt)
   }
 
   fn expression(&mut self) -> Result<Expr, ParseError> {
@@ -88,8 +123,9 @@ impl LoxParser {
     let mut left = self.comparison()?;
 
     while let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
+      let operator = operator.clone();
       let right = self.comparison()?;
-      left = Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) };
+      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
 
     Ok(left)
@@ -101,8 +137,9 @@ impl LoxParser {
     while let Some(operator) = self.advance_if_match(
       &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
     ) {
+      let operator = operator.clone();
       let right = self.term()?;
-      left = Expr::Binary { left: Box::new(left), operator: operator, right: Box::new(right) };
+      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
 
     Ok(left)
@@ -114,6 +151,7 @@ impl LoxParser {
     while let Some(operator) = self.advance_if_match(
       &[TokenKind::Plus, TokenKind::Minus]
     ) {
+      let operator = operator.clone();
       let right = self.factor()?;
       left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
@@ -127,6 +165,7 @@ impl LoxParser {
     while let Some(operator) = self.advance_if_match(
       &[TokenKind::Star, TokenKind::Slash]
     ) {
+      let operator = operator.clone();
       let right = self.unary()?;
       left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
     }
@@ -138,6 +177,7 @@ impl LoxParser {
     if let Some(operator) = self.advance_if_match(
       &[TokenKind::Minus, TokenKind::Bang]
     ) {
+      let operator = operator.clone();
       let expr = self.unary()?;
       return Ok(Expr::Unary { operator, right: Box::new(expr) });
     }
@@ -169,11 +209,11 @@ impl LoxParser {
   }
 
 
-  fn advance_if_match(&mut self, options: &[TokenKind]) -> Option<Token> {
+  fn advance_if_match(&mut self, options: &[TokenKind]) -> Option<&Token> {
     if let Some(token) = self.peek() {
       if options.iter().any(|opt| opt == token.kind()) {
-        let res = Some(token.clone());
-        self.current_pos += 1;
+        let res = Some(token);
+        self.inc();
         return res;
       }
     }
@@ -181,13 +221,13 @@ impl LoxParser {
   }
 
   fn next_token(&mut self) -> Result<&Token, ParseError> {
-    let res = self.tokens.get(self.current_pos);
-    self.current_pos += 1;
+    let res = self.tokens.get(self.pos());
+    self.inc();
     res.ok_or(ParseError::UnexpectedEndOfFile)
   }
 
   fn peek(&self) -> Option<&Token> {
-    self.tokens.get(self.current_pos)
+    self.tokens.get(self.pos())
   }
 
   fn peek_kind(&self) -> Option<&TokenKind> {
@@ -628,6 +668,12 @@ mod tests {
   fn can_parse_re_assign_some_var() {
     let ast = parse_from_code("var foo = 1;foo = 2;");
     assert_eq!(ast, "(def_var `foo` 1.0)\n(assign_var `foo` 2.0)");
+  }
+
+  #[test]
+  fn can_parse_scopes() {
+    let ast = parse_from_code("{ 1 + 2; }");
+    assert_eq!(ast, "(block_scope (+ 1.0 2.0))");
   }
 }
 

@@ -14,7 +14,8 @@ impl PrintAst {
       let line = match stmt {
         Stmt::Expr(expr) => self.print_expr(expr),
         Stmt::Print(expr) => format!("(print {})", self.print_expr(expr)),
-        Stmt::Var(name, value, _) => format!("(def_var `{}` {})", name, self.print_expr(value))
+        Stmt::Var(name, value, _) => format!("(def_var `{}` {})", name, self.print_expr(value)),
+        Stmt::ScopeBlock(stmts) => format!("(block_scope {})", self.print_stmts(stmts) ),
       };
       lines.push(line);
     }

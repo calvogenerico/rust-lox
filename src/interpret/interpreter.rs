@@ -61,7 +61,8 @@ impl Interpreter {
           let value = self.interpret_expr(expr)?;
           self.env.define(name, value.clone());
           value
-        }
+        },
+        _ => unimplemented!()
       };
       last_value = value;
     }

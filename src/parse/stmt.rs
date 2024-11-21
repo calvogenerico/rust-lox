@@ -4,5 +4,6 @@ use crate::parse::expr::Expr;
 pub enum Stmt {
   Expr(Expr),
   Print(Expr),
-  Var(String, Expr, usize)
+  Var(String, Expr, usize),
+  ScopeBlock(Vec<Stmt>),
 }
