@@ -75,7 +75,7 @@ impl LoxParser {
 
   fn print_stmt(&mut self) -> Result<Stmt, ParseError> {
     let stmt = Stmt::Print(self.expression()?);
-    self.consume(TokenKind::RightBrace)?;
+    self.consume(TokenKind::Semicolon)?;
     Ok(stmt)
   }
 
@@ -680,6 +680,12 @@ mod tests {
   fn can_parse_scopes_between_stmts() {
     let ast = parse_from_code("nil; { 1 + 2; } 3;");
     assert_eq!(ast, "nil\n(block_scope (+ 1.0 2.0))\n3.0");
+  }
+
+  #[test]
+  fn can_parse_multiple_stmts_inside_scope() {
+    let ast = parse_from_code("{ 1 + 2; 2 + 3; nil;}");
+    assert_eq!(ast, "(block_scope (+ 1.0 2.0)\n(+ 2.0 3.0)\nnil)");
   }
 }
 

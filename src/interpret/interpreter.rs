@@ -1,47 +1,25 @@
 use crate::interpret::environment::Environment;
 use crate::interpret::error::RuntimeError;
+use crate::interpret::value::Value;
 use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 
 pub struct Interpreter {
-  env: Environment
+  env: Option<Environment>,
 }
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum Value {
-  Number(f64),
-  Nil,
-  Boolean(bool),
-  String(String),
-}
-
-impl Value {
-  pub fn to_string(&self) -> String {
-    match self {
-      Value::Number(value) => format!("{value}"),
-      Value::Nil => "nil".to_string(),
-      Value::Boolean(value) => format!("{value}"),
-      Value::String(value) => value.to_string()
-    }
-  }
-
-  pub fn type_name(&self) -> &'static str {
-    match self {
-      Value::Number(_) => "Number",
-      Value::Nil => "nil",
-      Value::Boolean(_) => "Boolean",
-      Value::String(_) => "String",
-    }
-  }
-}
-
 
 impl Interpreter {
-  pub fn new() -> Interpreter {
+  pub fn new() -> Self {
     Interpreter {
-      env: Environment::new()
+      env: Some(Environment::new())
+    }
+  }
+
+  fn with_env(env: Environment) -> Interpreter {
+    Interpreter {
+      env: Some(env)
     }
   }
 
@@ -51,7 +29,7 @@ impl Interpreter {
       let value = match stmt {
         Stmt::Expr(expr) => {
           self.interpret_expr(expr)?
-        },
+        }
         Stmt::Print(expr) => {
           let value = self.interpret_expr(expr)?;
           println!("{}", value.to_string());
@@ -59,14 +37,34 @@ impl Interpreter {
         }
         Stmt::Var(name, expr, _) => {
           let value = self.interpret_expr(expr)?;
-          self.env.define(name, value.clone());
+          self.env().define(name, value.clone());
           value
-        },
-        _ => unimplemented!()
+        }
+        Stmt::ScopeBlock(stmts) => {
+          self.interpret_scope_block(stmts)?
+        }
       };
       last_value = value;
     }
     Ok(last_value)
+  }
+
+  fn env(&mut self) -> &mut Environment {
+    self.env.as_mut().expect("environment should always be present")
+  }
+
+  fn interpret_scope_block(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
+    let enclosing = self.env.take().unwrap();
+    let env = Environment::from(enclosing);
+    let mut interpreter = Interpreter::with_env(env);
+    let value = interpreter.interpret_stmts(stmts);
+    let option = interpreter.release();
+    self.env.replace(option.unwrap());
+    value
+  }
+
+  fn release(self) -> Option<Environment> {
+    self.env.unwrap().release()
   }
 
   pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
@@ -78,10 +76,10 @@ impl Interpreter {
       Expr::LiteralString { value } => Ok(Value::String(value.to_string())),
       Expr::Group { expression } => self.interpret_expr(expression),
       Expr::Binary { left, operator, right } => self.binary(left, operator, right),
-      Expr::Variable { name, line } => self.env.get(name, *line).map(|v| v.clone()),
+      Expr::Variable { name, line } => self.env().get(name, *line).map(|v| v.clone()),
       Expr::Assign { value, name, line } => {
         let value = self.interpret_expr(value)?;
-        self.env.assign(name, value.clone(), *line)?;
+        self.env().assign(name, value.clone(), *line)?;
         Ok(value)
       }
     }
@@ -127,7 +125,7 @@ impl Interpreter {
           operator.line(),
           operator.kind().symbol(),
           val1.type_name().to_string(),
-          val2.type_name().to_string()
+          val2.type_name().to_string(),
         )),
 
       _ => return Err(RuntimeError::InvalidExpression)
@@ -587,5 +585,21 @@ mod tests {
 
     let res = interpreted.unwrap_err();
     assert_eq!(res, RuntimeError::UndefinedVariable(1, "a".to_string()));
+  }
+
+  #[test]
+  fn scopes_can_be_executed_ok() {
+    let interpreted = interpret_program("var a; { a = 1;} a;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(1.0));
+  }
+
+  #[test]
+  fn redefine_variable_inside_scope_do_not_change_outside_scope() {
+    let interpreted = interpret_program("var a = 1; { var a = 2;} a;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(1.0));
   }
 }
