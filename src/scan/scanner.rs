@@ -44,7 +44,7 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
   }
 
-  pub fn scan_tokens(mut self) -> Result<Vec<Token>, Vec<String>> {
+  pub fn scan_tokens(mut self) -> (Vec<Token>, Vec<String>) {
     while !self.eof() {
       let next_char = self.take_char();
       if next_char.is_some() {
@@ -53,12 +53,8 @@ impl<'r, R: Read> Scanner<'r, R> {
     }
 
     self.push_token_current_line(TokenKind::Eof);
-    
-    if self.errors.len() > 0 {
-      Err(self.errors)
-    } else {
-      Ok(self.tokens)
-    }
+
+    (self.tokens, self.errors)
   }
 
   fn eof(&self) -> bool {
@@ -237,7 +233,7 @@ mod tests {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
     let scan = Scanner::new(&mut cursor);
-    let tokens = scan.scan_tokens().unwrap();
+    let tokens = scan.scan_tokens().0;
     
     tokens
   }
@@ -246,7 +242,7 @@ mod tests {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
     let scan = Scanner::new(&mut cursor);
-    scan.scan_tokens().unwrap_err()
+    scan.scan_tokens().1
   }
 
 

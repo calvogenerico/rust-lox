@@ -164,7 +164,7 @@ mod tests {
   fn interpret_program(src: &str) -> Result<Value, RuntimeError> {
     let mut cursor = Cursor::new(src);
     let scanner = Scanner::new(&mut cursor);
-    let tokens = scanner.scan_tokens().unwrap();
+    let tokens = scanner.scan_tokens().0;
     let stmts = LoxParser::new(tokens).parse().unwrap();
     let mut interpreter = Interpreter::new();
     interpreter.interpret_stmts(&stmts)

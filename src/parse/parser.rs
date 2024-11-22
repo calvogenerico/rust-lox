@@ -75,7 +75,11 @@ impl LoxParser {
 
   fn print_stmt(&mut self) -> Result<Stmt, ParseError> {
     let stmt = Stmt::Print(self.expression()?);
-    self.consume(TokenKind::Semicolon)?;
+
+    if !self.is_at_end() {
+      self.consume(TokenKind::Semicolon)?;
+    }
+
     Ok(stmt)
   }
 
@@ -93,7 +97,10 @@ impl LoxParser {
 
   fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
     let stmt = Stmt::Expr(self.expression()?);
-    self.consume(TokenKind::Semicolon)?;
+
+    if !self.is_at_end() {
+      self.consume(TokenKind::Semicolon)?;
+    }
     Ok(stmt)
   }
 
@@ -625,7 +632,7 @@ mod tests {
   fn parse_from_code(code: &str) -> String {
     let mut cursor = Cursor::new(code);
     let scanner = Scanner::new(&mut cursor);
-    let tokens = scanner.scan_tokens().unwrap();
+    let tokens = scanner.scan_tokens().0;
     let parser = LoxParser::new(tokens);
     let stmts = parser.parse().unwrap();
     PrintAst::new().print_stmts(&stmts)
@@ -686,6 +693,12 @@ mod tests {
   fn can_parse_multiple_stmts_inside_scope() {
     let ast = parse_from_code("{ 1 + 2; 2 + 3; nil;}");
     assert_eq!(ast, "(block_scope (+ 1.0 2.0)\n(+ 2.0 3.0)\nnil)");
+  }
+
+  #[test]
+  fn last_comma_can_be_missing() {
+    let ast = parse_from_code("1+2; 2+3");
+    assert_eq!(ast, "(+ 1.0 2.0)\n(+ 2.0 3.0)");
   }
 }
 

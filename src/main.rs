@@ -51,23 +51,11 @@ struct ReportError {
   errors: Vec<String>
 }
 
-// fn zzz<A, B>(f: impl Fn() -> Result<>) -> ExitCode {
-//   if let Err(e) = f() {
-//     for msg in e.errors {
-//       eprintln!({}, msg);
-//     }
-//
-//     return ExitCode::from(e.exit_code)
-//   }
-//   ExitCode::from(0);
-// }
-
-
 impl From<Vec<String>> for ReportError {
   fn from(value: Vec<String>) -> Self {
     ReportError {
       errors: value,
-      exit_code: 64
+      exit_code: 65
     }
   }
 }
@@ -101,14 +89,31 @@ impl From<RuntimeError> for ReportError {
 
 fn scan(input: &mut File) -> Result<Vec<Token>, ReportError> {
   let scanner = Scanner::new(input);
-  Ok(scanner.scan_tokens()?)
+  let (tokens, errors ) = scanner.scan_tokens();
+  if errors.len() > 0 {
+    Err(errors)?
+  } else {
+    Ok(tokens)
+  }
 }
 
 fn exec_main(cli: Cli) -> Result<String, ReportError> {
   match cli.command {
     Commands::Tokenize { file_path } => {
       let mut input = File::open(&file_path)?;
-      let tokens = scan(&mut input)?;
+      let (tokens, errors) = Scanner::new(&mut input).scan_tokens();
+      let strings = tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>();
+
+      if errors.len() > 0 {
+        for error in errors {
+          eprintln!("{error}")
+        }
+        for line in strings {
+          println!("{line}")
+        }
+        return Err(ReportError{ errors: vec![], exit_code: 65 })
+      }
+
       let strings = tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>();
       Ok(strings.join("\n"))
     }
