@@ -1,6 +1,6 @@
 use crate::scan::token::Token;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
   LiteralNumber {value: f64},
   LiteralBool {value: bool},

@@ -112,18 +112,20 @@ impl LoxParser {
     let left = self.equality()?;
 
     if let Some(TokenKind::Equal) = self.peek_kind() {
-      let token = self.next_token()?;
-      let equals_line = token.line();
-      let right = self.equality()?;
+      let equals = self.next_token()?;
+      let equals_line = equals.line();
+      
+      // This line eagerly consumes to the right;
+      let right = self.assignment()?;
 
       if let Expr::Variable { name, line } = left {
-        Ok(Expr::Assign { name, value: Box::new(right), line })
+        return Ok(Expr::Assign { name, value: Box::new(right), line });
       } else {
-        Err(ParseError::MalformedExpression(equals_line, "Invalid assignment target.".to_string()))
+        return Err(ParseError::MalformedExpression(equals_line, "Invalid assignment target.".to_string()))
       }
-    } else {
-      Ok(left)
     }
+
+    Ok(left)
   }
 
   fn equality(&mut self) -> Result<Expr, ParseError> {
@@ -699,6 +701,12 @@ mod tests {
   fn last_comma_can_be_missing() {
     let ast = parse_from_code("1+2; 2+3");
     assert_eq!(ast, "(+ 1.0 2.0)\n(+ 2.0 3.0)");
+  }
+
+  #[test]
+  fn can_parse_multiple_assignments_in_one_line() {
+    let ast = parse_from_code("var a; var b; a = b = 3;");
+    assert_eq!(ast, "(def_var `a` nil)\n(def_var `b` nil)\n(assign_var `a` (assign_var `b` 3.0))");
   }
 }
 

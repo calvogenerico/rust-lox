@@ -1,1 +1,6 @@
-"hello" "unterminated
+var baz;
+var foo;
+
+baz = foo = 54 + 42 * 63;
+print baz;
+print foo;
