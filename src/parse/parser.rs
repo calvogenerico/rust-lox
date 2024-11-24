@@ -149,13 +149,10 @@ impl LoxParser {
         None
       }
       None => {
-        if let Some(TokenKind::Var) = self.peek_kind() {
-          self.consume(TokenKind::Var)?;
+        if let Some(_) = self.advance_if_match(&[TokenKind::Var]) {
           Some(self.var_declaration()?)
         } else {
-          let expr = self.expression()?;
-          self.consume(TokenKind::Semicolon)?;
-          Some(Stmt::Expr(expr))
+          Some(self.expression_stmt()?)
         }
       }
     };
