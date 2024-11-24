@@ -143,48 +143,61 @@ impl LoxParser {
   fn for_stmt(&mut self) -> Result<Stmt, ParseError> {
     self.consume(TokenKind::LeftParen)?;
 
-    let mut stmts: Vec<Stmt> = vec![];
-
-    if let None = self.advance_if_match(&[TokenKind::Semicolon]) {
-      stmts.push(self.declaration()?)
-    }
-
-    let condition = if self.advance_if_match(&[TokenKind::Semicolon]).is_some() {
-      Expr::LiteralBool { value: true }
-    } else {
-      let res = self.expression()?;
-      self.consume(TokenKind::Semicolon)?;
-      res
+    // Var declaration -- for (HERE;;) {}
+    let declaration = match self.advance_if_match(&[TokenKind::Semicolon]) {
+      Some(_) => {
+        None
+      }
+      None => {
+        if let Some(TokenKind::Var) = self.peek_kind() {
+          self.consume(TokenKind::Var)?;
+          Some(self.var_declaration()?)
+        } else {
+          let expr = self.expression()?;
+          self.consume(TokenKind::Semicolon)?;
+          Some(Stmt::Expr(expr))
+        }
+      }
     };
 
-    let increment = if self.advance_if_match(&[TokenKind::Semicolon]).is_some() {
-      None
-    } else {
-      Some(self.expression()?)
-    };
+    // Ending condition -- for (;HERE;) {}
+    let condition = self.peek_kind()
+      .filter(|k| **k != TokenKind::Semicolon)
+      .map(|_| ())
+      .map(|_| self.expression())
+      .transpose()?;
+    self.consume(TokenKind::Semicolon)?;
 
+
+    // Increment -- for (;;HERE) {}
+    let increment = self.peek_kind()
+      .filter(|k| **k != TokenKind::RightParen)
+      .map(|_| ())
+      .map(|_| self.expression())
+      .transpose()?;
     self.consume(TokenKind::RightParen)?;
 
-    let body = self.statement()?;
-    let res_body = if increment.is_some() {
-      Stmt::ScopeBlock(vec![body, Stmt::Expr(increment.unwrap()) ])
-    } else {
-      body
+    // Body -- for (;;) HERE
+    let for_body = self.statement()?;
+
+
+    // Assemble all together
+    let while_body = match increment {
+      Some(inc) => Stmt::ScopeBlock(vec![for_body, Stmt::Expr(inc) ]),
+      None => for_body
     };
 
-    stmts.push(Stmt::While {
-      condition,
-      body: Box::new(res_body),
-    });
+    let while_stmt = Stmt::While {
+      condition: condition.unwrap_or(Expr::LiteralBool { value: true }),
+      body: Box::new(while_body),
+    };
 
-    // let stmts = vec![
-    //   declaration,
-    //   Stmt::While {
-    //     condition,
-    //     body: Box::new(Stmt::ScopeBlock(vec![body, Stmt::Expr(increment)]))
-    //   }
-    // ];
+    let mut stmts = match declaration {
+      Some(stmt) => vec![stmt],
+      None => vec![]
+    };
 
+    stmts.push(while_stmt);
     Ok(Stmt::ScopeBlock(stmts))
   }
 
@@ -875,6 +888,24 @@ mod tests {
     assert_eq!(
       ast,
       "(block_scope (while (< `i` 3.0) (block_scope (print `i`) (assign_var `i` (+ `i` 1.0)))))"
+    );
+  }
+
+  #[test]
+  fn can_parse_a_for_with_no_condition() {
+    let ast = parse_from_code("for (var i = 0;; i = i + 1) print i;");
+    assert_eq!(
+      ast,
+      "(block_scope (def_var `i` 0.0) (while true (block_scope (print `i`) (assign_var `i` (+ `i` 1.0)))))"
+    );
+  }
+
+  #[test]
+  fn can_parse_a_for_with_no_increment() {
+    let ast = parse_from_code("for (i = 0; i < 3;) print i;");
+    assert_eq!(
+      ast,
+      "(block_scope (assign_var `i` 0.0) (while (< `i` 3.0) (print `i`)))"
     );
   }
 }
