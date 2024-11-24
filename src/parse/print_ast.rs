@@ -68,6 +68,16 @@ impl PrintAst {
       Expr::Assign { name, value, .. } => {
         format!("(assign_var `{}` {})", name, self.print_expr(value))
       }
+      Expr::Logical {
+        left,
+        operator,
+        right,
+      } => format!(
+        "({} {} {})",
+        operator.symbol(),
+        self.print_expr(left),
+        self.print_expr(right)
+      ),
     }
   }
 }

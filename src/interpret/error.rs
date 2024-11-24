@@ -12,4 +12,6 @@ pub enum RuntimeError {
   UndefinedVariable(usize, String),
   #[error("Cannot write to stdout")]
   CannotWriteToStdout,
+  #[error("[line {0}]: Tried to divide by zero")]
+  ZeroDivision(usize),
 }

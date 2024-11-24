@@ -16,6 +16,11 @@ pub enum Expr {
     operator: Token,
     right: Box<Expr>,
   },
+  Logical {
+    left: Box<Expr>,
+    operator: Token,
+    right: Box<Expr>,
+  },
   Unary {
     operator: Token,
     right: Box<Expr>,

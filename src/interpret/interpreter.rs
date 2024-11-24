@@ -117,6 +117,7 @@ impl <W: Write> Interpreter<W> {
         self.env().assign(name, value.clone(), *line)?;
         Ok(value)
       }
+      Expr::Logical { left, operator, right } => self.logical(left, operator, right)
     }
   }
 
@@ -145,7 +146,12 @@ impl <W: Write> Interpreter<W> {
       (TokenKind::Plus, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 + n2),
       (TokenKind::Minus, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 - n2),
       (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 * n2),
-      (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 / n2),
+      (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => {
+        if *n2 == 0.0 {
+          return Err(RuntimeError::ZeroDivision(operator.line()))
+        }
+        Value::Number(n1 / n2)
+      },
       (TokenKind::Less, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 < n2),
       (TokenKind::LessEqual, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 <= n2),
       (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 > n2),
@@ -172,6 +178,31 @@ impl <W: Write> Interpreter<W> {
 
       _ => return Err(RuntimeError::InvalidExpression),
     })
+  }
+
+  fn logical(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<Value, RuntimeError> {
+    let left = self.interpret_expr(left)?;
+
+    match operator.kind() {
+      TokenKind::And => {
+        let x = self.is_truthy(&left);
+        if x {
+          self.interpret_expr(right)
+        } else {
+          Ok(left)
+        }
+      },
+      TokenKind::Or => {
+        if self.is_truthy(&left) {
+          Ok(left)
+        } else {
+          self.interpret_expr(right)
+        }
+      }
+      _ => {
+        Err(RuntimeError::InvalidExpression)
+      }
+    }
   }
 
   fn are_equal(&self, val1: &Value, val2: &Value) -> bool {
@@ -695,5 +726,47 @@ mod tests {
 
     let res = interpreted.unwrap();
     assert_eq!(res, "10\n");
+  }
+
+  #[test]
+  fn execution_of_and() {
+    let res1 = interpret_program("print true and 1").unwrap();
+    let res2 = interpret_program("print true and false").unwrap();
+    let res3 = interpret_program("print true and nil").unwrap();
+    let res4 = interpret_program("print true and \"hello\"").unwrap();
+    let res5 = interpret_program("print false and \"hello\"").unwrap();
+    let res6 = interpret_program("print nil and \"hello\"").unwrap();
+
+    assert_eq!(res1, "1\n");
+    assert_eq!(res2, "false\n");
+    assert_eq!(res3, "nil\n");
+    assert_eq!(res4, "hello\n");
+    assert_eq!(res5, "false\n");
+    assert_eq!(res6, "nil\n");
+
+  }
+
+  #[test]
+  fn shortcircuit_for_and() {
+    let res = interpret_program("print false and 1/0").unwrap();
+    assert_eq!(res, "false\n");
+  }
+
+  #[test]
+  fn execution_of_or() {
+    let res1 = interpret_program("print true or false").unwrap();
+    let res2 = interpret_program("print false or false").unwrap();
+    let res3 = interpret_program("print \"holu\" or false").unwrap();
+    let res4 = interpret_program("print nil or 10").unwrap();
+    assert_eq!(res1, "true\n");
+    assert_eq!(res2, "false\n");
+    assert_eq!(res3, "holu\n");
+    assert_eq!(res4, "10\n");
+  }
+
+  #[test]
+  fn short_circuit_for_or() {
+    let res = interpret_program("print 1 or 1/0").unwrap();
+    assert_eq!(res, "1\n");
   }
 }

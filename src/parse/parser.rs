@@ -152,7 +152,7 @@ impl LoxParser {
   }
 
   fn assignment(&mut self) -> Result<Expr, ParseError> {
-    let left = self.equality()?;
+    let left = self.or()?;
 
     if let Some(TokenKind::Equal) = self.peek_kind() {
       let equals = self.next_token()?;
@@ -173,6 +173,42 @@ impl LoxParser {
           "Invalid assignment target.".to_string(),
         ));
       }
+    }
+
+    Ok(left)
+  }
+
+  fn or(&mut self) -> Result<Expr, ParseError> {
+    let mut left = self.and()?;
+
+    while let Some(operator) = self.advance_if_match(&[
+      TokenKind::Or
+    ]) {
+      let operator = operator.clone();
+      let right = self.and()?;
+      left = Expr::Logical {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
+    }
+
+    Ok(left)
+  }
+
+  fn and(&mut self) -> Result<Expr, ParseError> {
+    let mut left = self.equality()?;
+
+    while let Some(operator) = self.advance_if_match(&[
+      TokenKind::And
+    ]) {
+      let operator = operator.clone();
+      let right = self.equality()?;
+      left = Expr::Logical {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
     }
 
     Ok(left)
@@ -767,5 +803,17 @@ mod tests {
   fn can_parse_while_stmts_with_single_line() {
     let ast = parse_from_code("while (a < 10) 1;");
     assert_eq!(ast, "(while (< `a` 10.0) 1.0)");
+  }
+
+  #[test]
+  fn can_parse_and_expr() {
+    let ast = parse_from_code("10 and 1;");
+    assert_eq!(ast, "(and 10.0 1.0)");
+  }
+
+  #[test]
+  fn can_parse_or_expr() {
+    let ast = parse_from_code("10 or 1;");
+    assert_eq!(ast, "(or 10.0 1.0)");
   }
 }
