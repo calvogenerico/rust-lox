@@ -71,6 +71,7 @@ impl LoxParser {
         TokenKind::If,
         TokenKind::LeftBrace,
         TokenKind::While,
+        TokenKind::For,
       ])
       .map(|t| t.kind())
     {
@@ -78,6 +79,7 @@ impl LoxParser {
       Some(TokenKind::If) => self.if_stmt()?,
       Some(TokenKind::LeftBrace) => self.scope_block()?,
       Some(TokenKind::While) => self.while_stmt()?,
+      Some(TokenKind::For) => self.for_stmt()?,
       _ => self.expression_stmt()?,
     };
 
@@ -138,6 +140,54 @@ impl LoxParser {
     Ok(Stmt::While { condition, body })
   }
 
+  fn for_stmt(&mut self) -> Result<Stmt, ParseError> {
+    self.consume(TokenKind::LeftParen)?;
+
+    let mut stmts: Vec<Stmt> = vec![];
+
+    if let None = self.advance_if_match(&[TokenKind::Semicolon]) {
+      stmts.push(self.declaration()?)
+    }
+
+    let condition = if self.advance_if_match(&[TokenKind::Semicolon]).is_some() {
+      Expr::LiteralBool { value: true }
+    } else {
+      let res = self.expression()?;
+      self.consume(TokenKind::Semicolon)?;
+      res
+    };
+
+    let increment = if self.advance_if_match(&[TokenKind::Semicolon]).is_some() {
+      None
+    } else {
+      Some(self.expression()?)
+    };
+
+    self.consume(TokenKind::RightParen)?;
+
+    let body = self.statement()?;
+    let res_body = if increment.is_some() {
+      Stmt::ScopeBlock(vec![body, Stmt::Expr(increment.unwrap()) ])
+    } else {
+      body
+    };
+
+    stmts.push(Stmt::While {
+      condition,
+      body: Box::new(res_body),
+    });
+
+    // let stmts = vec![
+    //   declaration,
+    //   Stmt::While {
+    //     condition,
+    //     body: Box::new(Stmt::ScopeBlock(vec![body, Stmt::Expr(increment)]))
+    //   }
+    // ];
+
+    Ok(Stmt::ScopeBlock(stmts))
+  }
+
   fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
     let stmt = Stmt::Expr(self.expression()?);
 
@@ -181,9 +231,7 @@ impl LoxParser {
   fn or(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.and()?;
 
-    while let Some(operator) = self.advance_if_match(&[
-      TokenKind::Or
-    ]) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::Or]) {
       let operator = operator.clone();
       let right = self.and()?;
       left = Expr::Logical {
@@ -199,9 +247,7 @@ impl LoxParser {
   fn and(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.equality()?;
 
-    while let Some(operator) = self.advance_if_match(&[
-      TokenKind::And
-    ]) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::And]) {
       let operator = operator.clone();
       let right = self.equality()?;
       left = Expr::Logical {
@@ -815,5 +861,20 @@ mod tests {
   fn can_parse_or_expr() {
     let ast = parse_from_code("10 or 1;");
     assert_eq!(ast, "(or 10.0 1.0)");
+  }
+
+  #[test]
+  fn can_parse_a_for_expr() {
+    let ast = parse_from_code("for (var i = 0; i < 3; i = i + 1) print i;");
+    assert_eq!(ast, "(block_scope (def_var `i` 0.0) (while (< `i` 3.0) (block_scope (print `i`) (assign_var `i` (+ `i` 1.0)))))");
+  }
+
+  #[test]
+  fn can_parse_a_for_with_no_initial_assignment() {
+    let ast = parse_from_code("for (; i < 3; i = i + 1) print i;");
+    assert_eq!(
+      ast,
+      "(block_scope (while (< `i` 3.0) (block_scope (print `i`) (assign_var `i` (+ `i` 1.0)))))"
+    );
   }
 }
