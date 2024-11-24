@@ -1,3 +1,4 @@
+use std::slice::from_ref;
 use crate::interpret::environment::Environment;
 use crate::interpret::error::RuntimeError;
 use crate::interpret::value::Value;
@@ -37,7 +38,7 @@ impl Interpreter {
           value
         }
         Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts)?,
-        Stmt::If { .. } => unimplemented!()
+        Stmt::If { condition, then, els } => self.interpret_if(condition, then, els.as_ref())?
       };
       last_value = value;
     }
@@ -59,6 +60,15 @@ impl Interpreter {
     let option = interpreter.release();
     self.env.replace(option.unwrap());
     value
+  }
+
+  fn interpret_if(&mut self, condition: &Expr, then: &Stmt, els: Option<&Box<Stmt>>) -> Result<Value, RuntimeError> {
+    let value = self.interpret_expr(condition)?;
+    if self.is_truthy(&value) {
+      self.interpret_stmts(from_ref(then))
+    } else {
+      els.map(|stmt| self.interpret_stmts(from_ref(stmt))).unwrap_or(Ok(Value::Nil))
+    }
   }
 
   fn release(self) -> Option<Environment> {
@@ -628,5 +638,29 @@ mod tests {
 
     let res = interpreted.unwrap();
     assert_eq!(res, Value::Number(1.0));
+  }
+
+  #[test]
+  fn exec_if_when_condition_is_true() {
+    let interpreted = interpret_program("var a; if (true) { a = 10; } a");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(10.0));
+  }
+
+  #[test]
+  fn exec_if_when_condition_is_false_and_no_else() {
+    let interpreted = interpret_program("var a; if (false) { a = 10; } a");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Nil);
+  }
+
+  #[test]
+  fn exec_if_when_condition_is_false_and_else_clause() {
+    let interpreted = interpret_program("var a; if (false) { a = 10; } else { a = -11; }  a");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(-11.0));
   }
 }
