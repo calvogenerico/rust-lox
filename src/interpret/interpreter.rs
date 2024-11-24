@@ -25,28 +25,32 @@ impl Interpreter {
   pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
     let mut last_value: Value = Value::Nil;
     for stmt in stmts {
-      let value = match stmt {
-        Stmt::Expr(expr) => self.interpret_expr(expr)?,
-        Stmt::Print(expr) => {
-          let value = self.interpret_expr(expr)?;
-          println!("{}", value.to_string());
-          value
-        }
-        Stmt::Var(name, expr, _) => {
-          let value = self.interpret_expr(expr)?;
-          self.env().define(name, value.clone());
-          value
-        }
-        Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts)?,
-        Stmt::If {
-          condition,
-          then,
-          els,
-        } => self.interpret_if(condition, then, els.as_ref().map(|b| &**b))?,
-      };
-      last_value = value;
+      last_value = self.interpret_stmt(stmt)?;
     }
     Ok(last_value)
+  }
+
+  pub fn interpret_stmt(&mut self, stmt: &Stmt) -> Result<Value, RuntimeError> {
+    match stmt {
+      Stmt::Expr(expr) => self.interpret_expr(expr),
+      Stmt::Print(expr) => {
+        let value = self.interpret_expr(expr)?;
+        println!("{}", &value.to_string());
+        Ok(value)
+      }
+      Stmt::Var(name, expr, _) => {
+        let value = self.interpret_expr(expr)?;
+        self.env().define(name, value.clone());
+        Ok(value)
+      }
+      Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts),
+      Stmt::If {
+        condition,
+        then,
+        els,
+      } => self.interpret_if(condition, then, els.as_ref().map(|b| &**b)),
+      Stmt::While { condition, body } => self.interpret_while(condition, body)
+    }
   }
 
   fn env(&mut self) -> &mut Environment {
@@ -80,6 +84,13 @@ impl Interpreter {
         .map(|stmt| self.interpret_stmts(slice::from_ref(stmt)))
         .unwrap_or(Ok(Value::Nil))
     }
+  }
+
+  fn interpret_while(&mut self, condition: &Expr, body: &Stmt) -> Result<Value, RuntimeError> {
+    while self.interpret_expr(condition).map(|v| self.is_truthy(&v))? {
+      self.interpret_stmt(body)?;
+    }
+    Ok(Value::Nil)
   }
 
   fn release(self) -> Option<Environment> {
@@ -674,4 +685,13 @@ mod tests {
     let res = interpreted.unwrap();
     assert_eq!(res, Value::Number(-11.0));
   }
+
+  #[test]
+  fn can_exec_a_while_stmt() {
+    let interpreted = interpret_program("var a = 0; while (a < 10) a = a + 1; a;");
+
+    let res = interpreted.unwrap();
+    assert_eq!(res, Value::Number(10.0));
+  }
+
 }

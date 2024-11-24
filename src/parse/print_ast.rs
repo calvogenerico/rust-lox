@@ -36,6 +36,11 @@ impl PrintAst {
           .map(|stmt| self.print_stmt(&stmt))
           .unwrap_or("".to_string()),
       ),
+      Stmt::While { condition, body } => format!(
+        "(while {} {})",
+        self.print_expr(condition),
+        self.print_stmt(body)
+      )
     }
   }
 

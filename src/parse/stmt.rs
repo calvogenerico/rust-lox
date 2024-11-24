@@ -11,4 +11,8 @@ pub enum Stmt {
     then: Box<Stmt>,
     els: Option<Box<Stmt>>,
   },
+  While {
+    condition: Expr,
+    body: Box<Stmt>
+  },
 }

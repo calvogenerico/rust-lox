@@ -65,15 +65,21 @@ impl LoxParser {
   }
 
   fn statement(&mut self) -> Result<Stmt, ParseError> {
-    let stmt = if self.advance_if_match(&[TokenKind::Print]).is_some() {
-      self.print_stmt()?
-    } else if self.advance_if_match(&[TokenKind::If]).is_some() {
-      self.if_stmt()?
-    } else if self.advance_if_match(&[TokenKind::LeftBrace]).is_some() {
-      self.scope_block()?
-    } else {
-      self.expression_stmt()?
+
+
+    let stmt = match self.advance_if_match(&[
+      TokenKind::Print,
+      TokenKind::If,
+      TokenKind::LeftBrace,
+      TokenKind::While
+    ]).map(|t| t.kind()) {
+      Some(TokenKind::Print) => self.print_stmt()?,
+      Some(TokenKind::If) => self.if_stmt()?,
+      Some(TokenKind::LeftBrace) => self.scope_block()?,
+      Some(TokenKind::While) => self.while_stmt()?,
+      _ => self.expression_stmt()?
     };
+
     Ok(stmt)
   }
 
@@ -119,6 +125,16 @@ impl LoxParser {
     self.consume(TokenKind::RightBrace)?;
 
     Ok(Stmt::ScopeBlock(stmts))
+  }
+
+  fn while_stmt(&mut self) -> Result<Stmt, ParseError> {
+    self.consume(TokenKind::LeftParen)?;
+    let condition = self.expression()?;
+    self.consume(TokenKind::RightParen)?;
+
+    let body = self.statement().map(Box::new)?;
+
+    Ok(Stmt::While { condition, body })
   }
 
   fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -680,7 +696,7 @@ mod tests {
   fn parse_multiple_stmts() {
     let ast = parse_from_code("1 + 1; 2 + 2;");
 
-    assert_eq!(ast, "(+ 1.0 1.0)\n(+ 2.0 2.0)");
+    assert_eq!(ast, "(+ 1.0 1.0) (+ 2.0 2.0)");
   }
 
   #[test]
@@ -698,7 +714,7 @@ mod tests {
   #[test]
   fn can_parse_re_assign_some_var() {
     let ast = parse_from_code("var foo = 1;foo = 2;");
-    assert_eq!(ast, "(def_var `foo` 1.0)\n(assign_var `foo` 2.0)");
+    assert_eq!(ast, "(def_var `foo` 1.0) (assign_var `foo` 2.0)");
   }
 
   #[test]
@@ -710,19 +726,19 @@ mod tests {
   #[test]
   fn can_parse_scopes_between_stmts() {
     let ast = parse_from_code("nil; { 1 + 2; } 3;");
-    assert_eq!(ast, "nil\n(block_scope (+ 1.0 2.0))\n3.0");
+    assert_eq!(ast, "nil (block_scope (+ 1.0 2.0)) 3.0");
   }
 
   #[test]
   fn can_parse_multiple_stmts_inside_scope() {
     let ast = parse_from_code("{ 1 + 2; 2 + 3; nil;}");
-    assert_eq!(ast, "(block_scope (+ 1.0 2.0)\n(+ 2.0 3.0)\nnil)");
+    assert_eq!(ast, "(block_scope (+ 1.0 2.0) (+ 2.0 3.0) nil)");
   }
 
   #[test]
   fn last_comma_can_be_missing() {
     let ast = parse_from_code("1+2; 2+3");
-    assert_eq!(ast, "(+ 1.0 2.0)\n(+ 2.0 3.0)");
+    assert_eq!(ast, "(+ 1.0 2.0) (+ 2.0 3.0)");
   }
 
   #[test]
@@ -730,7 +746,7 @@ mod tests {
     let ast = parse_from_code("var a; var b; a = b = 3;");
     assert_eq!(
       ast,
-      "(def_var `a` nil)\n(def_var `b` nil)\n(assign_var `a` (assign_var `b` 3.0))"
+      "(def_var `a` nil) (def_var `b` nil) (assign_var `a` (assign_var `b` 3.0))"
     );
   }
 
@@ -738,5 +754,17 @@ mod tests {
   fn can_parse_if_stmts() {
     let ast = parse_from_code("if (1 > 2) { 1; } else { 2; } ");
     assert_eq!(ast, "(if (> 1.0 2.0) (block_scope 1.0) (block_scope 2.0))");
+  }
+
+  #[test]
+  fn can_parse_while_stmts() {
+    let ast = parse_from_code("while (a < 10) { 1; }");
+    assert_eq!(ast, "(while (< `a` 10.0) (block_scope 1.0))");
+  }
+
+  #[test]
+  fn can_parse_while_stmts_with_single_line() {
+    let ast = parse_from_code("while (a < 10) 1;");
+    assert_eq!(ast, "(while (< `a` 10.0) 1.0)");
   }
 }
