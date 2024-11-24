@@ -37,6 +37,7 @@ impl Interpreter {
           value
         }
         Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts)?,
+        Stmt::If { .. } => unimplemented!()
       };
       last_value = value;
     }

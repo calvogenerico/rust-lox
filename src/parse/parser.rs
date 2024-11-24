@@ -88,7 +88,16 @@ impl LoxParser {
   }
 
   fn if_stmt(&mut self) -> Result<Stmt, ParseError> {
-    unimplemented!()
+    self.consume(TokenKind::LeftParen)?;
+    let condition = self.expression()?;
+    self.consume(TokenKind::RightParen)?;
+    let then = self.statement().map(|s| Box::new(s))?;
+
+    let els = self.advance_if_match(&[TokenKind::Else])
+      .map(|_| ())
+      .map(|_| self.statement().map(|s| Box::new(s))).transpose()?;
+
+    Ok(Stmt::If { condition, then, els })
   }
 
   fn scope_block(&mut self) -> Result<Stmt, ParseError> {
@@ -721,7 +730,7 @@ mod tests {
 
   #[test]
   fn can_parse_if_stmts() {
-    let ast = parse_from_code("if (1 > 2) { 1 } else { 2 } ");
-    assert_eq!(ast, "(if (1 > 2) 1 2)");
+    let ast = parse_from_code("if (1 > 2) { 1; } else { 2; } ");
+    assert_eq!(ast, "(if (> 1.0 2.0) (block_scope 1.0) (block_scope 2.0))");
   }
 }

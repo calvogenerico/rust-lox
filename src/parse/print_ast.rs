@@ -11,15 +11,29 @@ impl PrintAst {
   pub fn print_stmts(&self, stmts: &[Stmt]) -> String {
     let mut lines = vec![];
     for stmt in stmts {
-      let line = match stmt {
-        Stmt::Expr(expr) => self.print_expr(expr),
-        Stmt::Print(expr) => format!("(print {})", self.print_expr(expr)),
-        Stmt::Var(name, value, _) => format!("(def_var `{}` {})", name, self.print_expr(value)),
-        Stmt::ScopeBlock(stmts) => format!("(block_scope {})", self.print_stmts(stmts)),
-      };
+      let line = self.print_stmt(stmt);
       lines.push(line);
     }
-    lines.join("\n")
+    lines.join(" ")
+  }
+
+  fn print_stmt(&self, stmt: &Stmt) -> String {
+    match stmt {
+      Stmt::Expr(expr) => self.print_expr(expr),
+      Stmt::Print(expr) => format!("(print {})", self.print_expr(expr)),
+      Stmt::Var(name, value, _) => format!("(def_var `{}` {})", name, self.print_expr(value)),
+      Stmt::ScopeBlock(stmts) => format!("(block_scope {})", self.print_stmts(stmts)),
+      Stmt::If {
+        condition,
+        then,
+        els,
+      } => format!(
+        "(if {} {} {})",
+        self.print_expr(condition),
+        self.print_stmt(then),
+        els.as_ref().map(|stmt| self.print_stmt(&stmt)).unwrap_or("".to_string()) ,
+      ),
+    }
   }
 
   pub fn print_expr(&self, root: &Expr) -> String {
