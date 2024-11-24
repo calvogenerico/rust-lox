@@ -13,23 +13,19 @@ pub struct Interpreter {
 impl Interpreter {
   pub fn new() -> Self {
     Interpreter {
-      env: Some(Environment::new())
+      env: Some(Environment::new()),
     }
   }
 
   fn with_env(env: Environment) -> Interpreter {
-    Interpreter {
-      env: Some(env)
-    }
+    Interpreter { env: Some(env) }
   }
 
   pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
     let mut last_value: Value = Value::Nil;
     for stmt in stmts {
       let value = match stmt {
-        Stmt::Expr(expr) => {
-          self.interpret_expr(expr)?
-        }
+        Stmt::Expr(expr) => self.interpret_expr(expr)?,
         Stmt::Print(expr) => {
           let value = self.interpret_expr(expr)?;
           println!("{}", value.to_string());
@@ -40,9 +36,7 @@ impl Interpreter {
           self.env().define(name, value.clone());
           value
         }
-        Stmt::ScopeBlock(stmts) => {
-          self.interpret_scope_block(stmts)?
-        }
+        Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts)?,
       };
       last_value = value;
     }
@@ -50,7 +44,10 @@ impl Interpreter {
   }
 
   fn env(&mut self) -> &mut Environment {
-    self.env.as_mut().expect("environment should always be present")
+    self
+      .env
+      .as_mut()
+      .expect("environment should always be present")
   }
 
   fn interpret_scope_block(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
@@ -75,7 +72,11 @@ impl Interpreter {
       Expr::Unary { operator, right } => self.unary(operator, right),
       Expr::LiteralString { value } => Ok(Value::String(value.to_string())),
       Expr::Group { expression } => self.interpret_expr(expression),
-      Expr::Binary { left, operator, right } => self.binary(left, operator, right),
+      Expr::Binary {
+        left,
+        operator,
+        right,
+      } => self.binary(left, operator, right),
       Expr::Variable { name, line } => self.env().get(name, *line).map(|v| v.clone()),
       Expr::Assign { value, name, line } => {
         let value = self.interpret_expr(value)?;
@@ -90,8 +91,13 @@ impl Interpreter {
     Ok(match (value, operator.kind()) {
       (Value::Number(value), TokenKind::Minus) => Value::Number(-value),
       (val, TokenKind::Bang) => Value::Boolean(!self.is_truthy(&val)),
-      (value, TokenKind::Minus) => return Err(RuntimeError::NotANumber(operator.line(), value.type_name().to_string())),
-      _ => return Err(RuntimeError::InvalidExpression)
+      (value, TokenKind::Minus) => {
+        return Err(RuntimeError::NotANumber(
+          operator.line(),
+          value.type_name().to_string(),
+        ))
+      }
+      _ => return Err(RuntimeError::InvalidExpression),
     })
   }
 
@@ -120,15 +126,17 @@ impl Interpreter {
         | TokenKind::Star
         | TokenKind::Slash,
         val1,
-        val2) =>
+        val2,
+      ) => {
         return Err(RuntimeError::WrongBinaryOperationType(
           operator.line(),
           operator.kind().symbol(),
           val1.type_name().to_string(),
           val2.type_name().to_string(),
-        )),
+        ))
+      }
 
-      _ => return Err(RuntimeError::InvalidExpression)
+      _ => return Err(RuntimeError::InvalidExpression),
     })
   }
 
@@ -137,7 +145,7 @@ impl Interpreter {
       (Value::Number(n1), Value::Number(n2)) => n1 == n2,
       (Value::Boolean(b1), Value::Boolean(b2)) => b1 == b2,
       (Value::String(s1), Value::String(s2)) => s1 == s2,
-      (val1, val2) => val1 == val2
+      (val1, val2) => val1 == val2,
     }
   }
 
@@ -149,17 +157,17 @@ impl Interpreter {
     match value {
       Value::Nil => true,
       Value::Boolean(false) => true,
-      _ => false
+      _ => false,
     }
   }
 }
 
 #[cfg(test)]
 mod tests {
-  use std::io::Cursor;
+  use super::*;
   use crate::parse::parser::LoxParser;
   use crate::scan::scanner::Scanner;
-  use super::*;
+  use std::io::Cursor;
 
   fn interpret_program(src: &str) -> Result<Value, RuntimeError> {
     let mut cursor = Cursor::new(src);
@@ -484,23 +492,29 @@ mod tests {
     let interpreted = interpret_program("1 + true;");
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "+".to_string(),
-      "Number".to_string(),
-      "Boolean".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "+".to_string(),
+        "Number".to_string(),
+        "Boolean".to_string()
+      )
+    );
 
     let interpreted = interpret_program("true + 1;");
 
     let err = interpreted.unwrap_err();
 
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "+".to_string(),
-      "Boolean".to_string(),
-      "Number".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "+".to_string(),
+        "Boolean".to_string(),
+        "Number".to_string()
+      )
+    );
   }
 
   #[test]
@@ -508,12 +522,15 @@ mod tests {
     let interpreted = interpret_program("1 + \"2\";");
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "+".to_string(),
-      "Number".to_string(),
-      "String".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "+".to_string(),
+        "Number".to_string(),
+        "String".to_string()
+      )
+    );
   }
 
   #[test]
@@ -521,12 +538,15 @@ mod tests {
     let interpreted = interpret_program("1 <= \"2\";");
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "<=".to_string(),
-      "Number".to_string(),
-      "String".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "<=".to_string(),
+        "Number".to_string(),
+        "String".to_string()
+      )
+    );
   }
 
   #[test]
@@ -534,12 +554,15 @@ mod tests {
     let interpreted = interpret_program("1 * \"2\";");
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "*".to_string(),
-      "Number".to_string(),
-      "String".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "*".to_string(),
+        "Number".to_string(),
+        "String".to_string()
+      )
+    );
   }
 
   #[test]
@@ -547,12 +570,15 @@ mod tests {
     let interpreted = interpret_program("1 / \"2\";");
 
     let err = interpreted.unwrap_err();
-    assert_eq!(err, RuntimeError::WrongBinaryOperationType(
-      1,
-      "/".to_string(),
-      "Number".to_string(),
-      "String".to_string()
-    ));
+    assert_eq!(
+      err,
+      RuntimeError::WrongBinaryOperationType(
+        1,
+        "/".to_string(),
+        "Number".to_string(),
+        "String".to_string()
+      )
+    );
   }
 
   #[test]

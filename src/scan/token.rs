@@ -8,10 +8,7 @@ pub struct Token {
 
 impl Token {
   pub fn new(kind: TokenKind, line: usize) -> Token {
-    Token {
-      kind,
-      line
-    }
+    Token { kind, line }
   }
 
   pub fn to_string(&self) -> String {

@@ -1,10 +1,9 @@
-use std::cell::RefCell;
 use crate::parse::expr::Expr;
 use crate::parse::parse_error::ParseError;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
-
+use std::cell::RefCell;
 
 pub struct LoxParser {
   tokens: Vec<Token>,
@@ -58,13 +57,18 @@ impl LoxParser {
       self.consume(TokenKind::Semicolon)?;
       Ok(stmt)
     } else {
-      Err(ParseError::MalformedExpression(line, format!("Expected identifier, got {}", token.symbol())))
+      Err(ParseError::MalformedExpression(
+        line,
+        format!("Expected identifier, got {}", token.symbol()),
+      ))
     }
   }
 
   fn statement(&mut self) -> Result<Stmt, ParseError> {
     let stmt = if self.advance_if_match(&[TokenKind::Print]).is_some() {
       self.print_stmt()?
+    } else if self.advance_if_match(&[TokenKind::If]).is_some() {
+      self.if_stmt()?
     } else if self.advance_if_match(&[TokenKind::LeftBrace]).is_some() {
       self.scope_block()?
     } else {
@@ -83,11 +87,18 @@ impl LoxParser {
     Ok(stmt)
   }
 
+  fn if_stmt(&mut self) -> Result<Stmt, ParseError> {
+    unimplemented!()
+  }
+
   fn scope_block(&mut self) -> Result<Stmt, ParseError> {
     let mut stmts = vec![];
 
-    while self.peek_kind().is_some_and(|k| *k != TokenKind::RightBrace) {
-      stmts.push( self.declaration()?)
+    while self
+      .peek_kind()
+      .is_some_and(|k| *k != TokenKind::RightBrace)
+    {
+      stmts.push(self.declaration()?)
     }
 
     self.consume(TokenKind::RightBrace)?;
@@ -114,14 +125,21 @@ impl LoxParser {
     if let Some(TokenKind::Equal) = self.peek_kind() {
       let equals = self.next_token()?;
       let equals_line = equals.line();
-      
+
       // This line eagerly consumes to the right;
       let right = self.assignment()?;
 
       if let Expr::Variable { name, line } = left {
-        return Ok(Expr::Assign { name, value: Box::new(right), line });
+        return Ok(Expr::Assign {
+          name,
+          value: Box::new(right),
+          line,
+        });
       } else {
-        return Err(ParseError::MalformedExpression(equals_line, "Invalid assignment target.".to_string()))
+        return Err(ParseError::MalformedExpression(
+          equals_line,
+          "Invalid assignment target.".to_string(),
+        ));
       }
     }
 
@@ -131,10 +149,15 @@ impl LoxParser {
   fn equality(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.comparison()?;
 
-    while let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual]) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::EqualEqual, TokenKind::BangEqual])
+    {
       let operator = operator.clone();
       let right = self.comparison()?;
-      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
+      left = Expr::Binary {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
     }
 
     Ok(left)
@@ -143,12 +166,19 @@ impl LoxParser {
   fn comparison(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.term()?;
 
-    while let Some(operator) = self.advance_if_match(
-      &[TokenKind::Less, TokenKind::LessEqual, TokenKind::Greater, TokenKind::GreaterEqual]
-    ) {
+    while let Some(operator) = self.advance_if_match(&[
+      TokenKind::Less,
+      TokenKind::LessEqual,
+      TokenKind::Greater,
+      TokenKind::GreaterEqual,
+    ]) {
       let operator = operator.clone();
       let right = self.term()?;
-      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
+      left = Expr::Binary {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
     }
 
     Ok(left)
@@ -157,12 +187,14 @@ impl LoxParser {
   fn term(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.factor()?;
 
-    while let Some(operator) = self.advance_if_match(
-      &[TokenKind::Plus, TokenKind::Minus]
-    ) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::Plus, TokenKind::Minus]) {
       let operator = operator.clone();
       let right = self.factor()?;
-      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
+      left = Expr::Binary {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
     }
 
     Ok(left)
@@ -171,24 +203,27 @@ impl LoxParser {
   fn factor(&mut self) -> Result<Expr, ParseError> {
     let mut left = self.unary()?;
 
-    while let Some(operator) = self.advance_if_match(
-      &[TokenKind::Star, TokenKind::Slash]
-    ) {
+    while let Some(operator) = self.advance_if_match(&[TokenKind::Star, TokenKind::Slash]) {
       let operator = operator.clone();
       let right = self.unary()?;
-      left = Expr::Binary { left: Box::new(left), operator, right: Box::new(right) };
+      left = Expr::Binary {
+        left: Box::new(left),
+        operator,
+        right: Box::new(right),
+      };
     }
 
     Ok(left)
   }
 
   fn unary(&mut self) -> Result<Expr, ParseError> {
-    if let Some(operator) = self.advance_if_match(
-      &[TokenKind::Minus, TokenKind::Bang]
-    ) {
+    if let Some(operator) = self.advance_if_match(&[TokenKind::Minus, TokenKind::Bang]) {
       let operator = operator.clone();
       let expr = self.unary()?;
-      return Ok(Expr::Unary { operator, right: Box::new(expr) });
+      return Ok(Expr::Unary {
+        operator,
+        right: Box::new(expr),
+      });
     }
 
     self.primary()
@@ -198,25 +233,40 @@ impl LoxParser {
     let token = self.next_token()?.clone();
 
     match token.kind() {
-      TokenKind::Number(repr) => Ok(Expr::LiteralNumber { value: repr.parse().unwrap() }),
+      TokenKind::Number(repr) => Ok(Expr::LiteralNumber {
+        value: repr.parse().unwrap(),
+      }),
       TokenKind::True => Ok(Expr::LiteralBool { value: true }),
       TokenKind::False => Ok(Expr::LiteralBool { value: false }),
-      TokenKind::String(repr) => Ok(Expr::LiteralString { value: repr.to_string() }),
+      TokenKind::String(repr) => Ok(Expr::LiteralString {
+        value: repr.to_string(),
+      }),
       TokenKind::Nil => Ok(Expr::LiteralNil),
-      TokenKind::Identifier(name) => Ok(Expr::Variable { name: name.clone(), line: token.line() }),
+      TokenKind::Identifier(name) => Ok(Expr::Variable {
+        name: name.clone(),
+        line: token.line(),
+      }),
       TokenKind::LeftParen => {
         let res = self.expression()?;
 
-        self.consume(TokenKind::RightParen)
-          .map_err(|_| ParseError::MalformedExpression(token.line(), "Missing closing parenthesis".to_string()))?;
+        self.consume(TokenKind::RightParen).map_err(|_| {
+          ParseError::MalformedExpression(token.line(), "Missing closing parenthesis".to_string())
+        })?;
 
-        Ok(Expr::Group { expression: Box::new(res) })
+        Ok(Expr::Group {
+          expression: Box::new(res),
+        })
       }
-      TokenKind::Eof => Err(ParseError::MalformedExpression(token.line(), "Unexpected end of file".to_string())),
-      _ => Err(ParseError::MalformedExpression(token.line(), format!("Expected expression got `{}`", token.symbol())))
+      TokenKind::Eof => Err(ParseError::MalformedExpression(
+        token.line(),
+        "Unexpected end of file".to_string(),
+      )),
+      _ => Err(ParseError::MalformedExpression(
+        token.line(),
+        format!("Expected expression got `{}`", token.symbol()),
+      )),
     }
   }
-
 
   fn advance_if_match(&mut self, options: &[TokenKind]) -> Option<&Token> {
     if let Some(token) = self.peek() {
@@ -261,14 +311,12 @@ impl LoxParser {
   }
 }
 
-
 #[cfg(test)]
 mod tests {
-  use std::io::Cursor;
+  use super::*;
   use crate::parse::print_ast::PrintAst;
   use crate::scan::scanner::Scanner;
-  use super::*;
-
+  use std::io::Cursor;
 
   fn parser(tokens: Vec<Token>) -> LoxParser {
     LoxParser::new(tokens)
@@ -281,8 +329,8 @@ mod tests {
     let res = parser.parse().unwrap().pop().unwrap();
     let visitor = PrintAst {};
     match res {
-      Stmt::Expr(expr) => { visitor.print_expr(&expr) }
-      _ => panic!("should not be this")
+      Stmt::Expr(expr) => visitor.print_expr(&expr),
+      _ => panic!("should not be this"),
     }
   }
 
@@ -329,17 +377,19 @@ mod tests {
       Token::new(TokenKind::Less, 1),
       Token::new(TokenKind::LessEqual, 1),
       Token::new(TokenKind::Greater, 1),
-      Token::new(TokenKind::GreaterEqual, 1)
+      Token::new(TokenKind::GreaterEqual, 1),
     ];
 
     for token in tokens {
       let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
       let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
 
-
       let representation = parse_and_print_expr(vec![one_token, token.clone(), two_token]);
 
-      assert_eq!(representation, format!("({} 1.0 2.0)", &token.kind().symbol()));
+      assert_eq!(
+        representation,
+        format!("({} 1.0 2.0)", &token.kind().symbol())
+      );
     }
   }
 
@@ -356,7 +406,7 @@ mod tests {
       less_than_token,
       two_token,
       equal_equal_token,
-      three_token
+      three_token,
     ]);
 
     assert_eq!(representation, "(== (<= 1.0 2.0) 3.0)");
@@ -368,11 +418,7 @@ mod tests {
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let plus_token = Token::new(TokenKind::Plus, 1);
 
-    let representation = parse_and_print_expr(vec![
-      one_token,
-      plus_token,
-      two_token
-    ]);
+    let representation = parse_and_print_expr(vec![one_token, plus_token, two_token]);
 
     assert_eq!(representation, "(+ 1.0 2.0)")
   }
@@ -394,7 +440,7 @@ mod tests {
       equal_equal_token,
       tree_token,
       minus_token,
-      four_token
+      four_token,
     ]);
 
     assert_eq!(representation, "(== (+ 1.0 2.0) (- 3.0 4.0))")
@@ -406,11 +452,7 @@ mod tests {
     let two_token = Token::new(TokenKind::Number("2".to_string()), 1);
     let star_token = Token::new(TokenKind::Star, 1);
 
-    let representation = parse_and_print_expr(vec![
-      one_token,
-      star_token,
-      two_token
-    ]);
+    let representation = parse_and_print_expr(vec![one_token, star_token, two_token]);
 
     assert_eq!(representation, "(* 1.0 2.0)")
   }
@@ -430,7 +472,7 @@ mod tests {
       one_token,
       equal_equal_token,
       bang_token,
-      true_token
+      true_token,
     ]);
 
     assert_eq!(representation, "(== (- 1.0) (! true))")
@@ -457,11 +499,7 @@ mod tests {
     let right_paren = Token::new(TokenKind::RightParen, 1);
     let one_token = Token::new(TokenKind::Number("1".to_string()), 1);
 
-    let representation = parse_and_print_expr(vec![
-      left_paren,
-      one_token,
-      right_paren
-    ]);
+    let representation = parse_and_print_expr(vec![left_paren, one_token, right_paren]);
 
     assert_eq!(representation, "(group 1.0)")
   }
@@ -479,7 +517,7 @@ mod tests {
       one_token,
       plus_token,
       two_token,
-      right_paren
+      right_paren,
     ]);
 
     assert_eq!(representation, "(group (+ 1.0 2.0))")
@@ -492,12 +530,7 @@ mod tests {
     let bang_token = Token::new(TokenKind::Bang, 1);
     let false_token = Token::new(TokenKind::False, 1);
 
-    let representation = parse_and_print_expr(vec![
-      nil_token,
-      plus_token,
-      bang_token,
-      false_token
-    ]);
+    let representation = parse_and_print_expr(vec![nil_token, plus_token, bang_token, false_token]);
 
     assert_eq!(representation, "(+ nil (! false))")
   }
@@ -507,11 +540,7 @@ mod tests {
     let bang_token = Token::new(TokenKind::Bang, 1);
     let false_token = Token::new(TokenKind::False, 1);
 
-    let representation = parse_and_print_expr(vec![
-      bang_token.clone(),
-      bang_token,
-      false_token
-    ]);
+    let representation = parse_and_print_expr(vec![bang_token.clone(), bang_token, false_token]);
 
     assert_eq!(representation, "(! (! false))")
   }
@@ -525,14 +554,7 @@ mod tests {
     let star = Token::new(TokenKind::Star, 1);
     let slash = Token::new(TokenKind::Slash, 1);
 
-
-    let representation = parse_and_print_expr(vec![
-      n1,
-      star,
-      n2,
-      slash,
-      n3
-    ]);
+    let representation = parse_and_print_expr(vec![n1, star, n2, slash, n3]);
 
     assert_eq!(representation, "(/ (* 84.0 69.0) 56.0)")
   }
@@ -546,14 +568,7 @@ mod tests {
     let plus = Token::new(TokenKind::Plus, 1);
     let minus = Token::new(TokenKind::Minus, 1);
 
-
-    let representation = parse_and_print_expr(vec![
-      n1,
-      plus,
-      n2,
-      minus,
-      n3
-    ]);
+    let representation = parse_and_print_expr(vec![n1, plus, n2, minus, n3]);
 
     assert_eq!(representation, "(- (+ 84.0 69.0) 56.0)")
   }
@@ -567,14 +582,7 @@ mod tests {
     let equal_equal = Token::new(TokenKind::EqualEqual, 1);
     let bang_equal = Token::new(TokenKind::BangEqual, 1);
 
-
-    let representation = parse_and_print_expr(vec![
-      n1,
-      equal_equal,
-      n2,
-      bang_equal,
-      n3
-    ]);
+    let representation = parse_and_print_expr(vec![n1, equal_equal, n2, bang_equal, n3]);
 
     assert_eq!(representation, "(!= (== 84.0 69.0) 56.0)")
   }
@@ -588,14 +596,7 @@ mod tests {
     let less = Token::new(TokenKind::Less, 1);
     let greater = Token::new(TokenKind::Greater, 1);
 
-
-    let representation = parse_and_print_expr(vec![
-      n1,
-      less,
-      n2,
-      greater,
-      n3
-    ]);
+    let representation = parse_and_print_expr(vec![n1, less, n2, greater, n3]);
 
     assert_eq!(representation, "(> (< 84.0 69.0) 56.0)")
   }
@@ -613,7 +614,10 @@ mod tests {
     let res = parser.parse();
 
     assert!(res.is_err());
-    assert_eq!(res.unwrap_err(), ParseError::MalformedExpression(1, "Missing closing parenthesis".to_string()));
+    assert_eq!(
+      res.unwrap_err(),
+      ParseError::MalformedExpression(1, "Missing closing parenthesis".to_string())
+    );
   }
 
   #[test]
@@ -621,14 +625,17 @@ mod tests {
     let tokens = vec![
       Token::new(TokenKind::Number("1".to_string()), 1),
       Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::Eof, 1)
+      Token::new(TokenKind::Eof, 1),
     ];
 
     let parser = parser(tokens);
     let res = parser.parse();
 
     assert!(res.is_err());
-    assert_eq!(res.unwrap_err(), ParseError::MalformedExpression(1, "Unexpected end of file".to_string()));
+    assert_eq!(
+      res.unwrap_err(),
+      ParseError::MalformedExpression(1, "Unexpected end of file".to_string())
+    );
   }
 
   fn parse_from_code(code: &str) -> String {
@@ -706,7 +713,15 @@ mod tests {
   #[test]
   fn can_parse_multiple_assignments_in_one_line() {
     let ast = parse_from_code("var a; var b; a = b = 3;");
-    assert_eq!(ast, "(def_var `a` nil)\n(def_var `b` nil)\n(assign_var `a` (assign_var `b` 3.0))");
+    assert_eq!(
+      ast,
+      "(def_var `a` nil)\n(def_var `b` nil)\n(assign_var `a` (assign_var `b` 3.0))"
+    );
+  }
+
+  #[test]
+  fn can_parse_if_stmts() {
+    let ast = parse_from_code("if (1 > 2) { 1 } else { 2 } ");
+    assert_eq!(ast, "(if (1 > 2) 1 2)");
   }
 }
-

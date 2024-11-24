@@ -1,7 +1,7 @@
-use std::io::{Read};
-use utf8_read::{Char, Reader};
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
+use std::io::Read;
+use utf8_read::{Char, Reader};
 
 pub struct Scanner<'r, R: Read> {
   input: Reader<&'r mut R>,
@@ -29,7 +29,7 @@ fn reserved_words(input: &str) -> Option<TokenKind> {
     "true" => Some(TokenKind::True),
     "var" => Some(TokenKind::Var),
     "while" => Some(TokenKind::While),
-    _ => None
+    _ => None,
   }
 }
 
@@ -114,7 +114,10 @@ impl<'r, R: Read> Scanner<'r, R> {
   }
 
   fn scan_unexpected_character(&mut self, a_char: char) {
-    let error = format!("[line {}] Error: Unexpected character: {}", self.current_line, a_char);
+    let error = format!(
+      "[line {}] Error: Unexpected character: {}",
+      self.current_line, a_char
+    );
     self.errors.push(error);
   }
 
@@ -130,7 +133,9 @@ impl<'r, R: Read> Scanner<'r, R> {
     if let Some(content) = self.take_chars_until('"') {
       self.push_token_at(TokenKind::String(content), start);
     } else {
-      self.errors.push(format!("[line {start}] Error: Unterminated string."));
+      self
+        .errors
+        .push(format!("[line {start}] Error: Unterminated string."));
     }
   }
 
@@ -190,11 +195,9 @@ impl<'r, R: Read> Scanner<'r, R> {
   }
 
   fn take_char(&mut self) -> Option<char> {
-    let next_char = self.peeked.take().or_else(|| {
-      match self.input.next_char() {
-        Ok(Char::Char(res)) => Some(res),
-        _ => None
-      }
+    let next_char = self.peeked.take().or_else(|| match self.input.next_char() {
+      Ok(Char::Char(res)) => Some(res),
+      _ => None,
     });
 
     if next_char.is_some_and(|c| c == '\n') {
@@ -226,15 +229,15 @@ impl<'r, R: Read> Scanner<'r, R> {
 
 #[cfg(test)]
 mod tests {
-  use std::io::{Cursor};
   use super::*;
+  use std::io::Cursor;
 
   fn scan_program_clean(code: &str) -> Vec<Token> {
     let program = String::from(code);
     let mut cursor = Cursor::new(program);
     let scan = Scanner::new(&mut cursor);
     let tokens = scan.scan_tokens().0;
-    
+
     tokens
   }
 
@@ -245,425 +248,528 @@ mod tests {
     scan.scan_tokens().1
   }
 
-
   #[test]
   fn test_left_paren() {
     let tokens = scan_program_clean("(");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftParen, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_right_paren() {
     let tokens = scan_program_clean(")");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::RightParen, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::RightParen, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_left_brace() {
     let tokens = scan_program_clean("{");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftBrace, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftBrace, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_right_brace() {
     let tokens = scan_program_clean("}");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::RightBrace, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::RightBrace, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_comma() {
     let tokens = scan_program_clean(",");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Comma, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Comma, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_dot() {
     let tokens = scan_program_clean(".");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Dot, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::Dot, 1), Token::new(TokenKind::Eof, 1),]
+    );
   }
 
   #[test]
   fn test_minus() {
     let tokens = scan_program_clean("-");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Minus, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Minus, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_plus() {
     let tokens = scan_program_clean("+");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Plus, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Plus, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_semicolon() {
     let tokens = scan_program_clean(";");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Semicolon, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Semicolon, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_slash() {
     let tokens = scan_program_clean("/");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Slash, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Slash, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_star() {
     let tokens = scan_program_clean("*");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Star, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Star, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_bang() {
     let tokens = scan_program_clean("!");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Bang, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_bang_equal() {
     let tokens = scan_program_clean("!=");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::BangEqual, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::BangEqual, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_less_than() {
     let tokens = scan_program_clean("<");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Less, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Less, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn test_less_equal() {
     let tokens = scan_program_clean("<=");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LessEqual, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LessEqual, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn triple_equals_creates_one_double_equal_and_then_a_simple_equal() {
     let tokens = scan_program_clean("===");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::EqualEqual, 1),
-      Token::new(TokenKind::Equal, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::EqualEqual, 1),
+        Token::new(TokenKind::Equal, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn bang_bang_equal_gets_bang_bang_equal() {
     let tokens = scan_program_clean("!!=");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Bang, 1),
-      Token::new(TokenKind::BangEqual, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Bang, 1),
+        Token::new(TokenKind::BangEqual, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn only_number_one_returns_digit_1() {
     let tokens = scan_program_clean("1");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Number("1".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Number("1".to_string()), 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn nine_nine_one_returns_digit_99() {
     let tokens = scan_program_clean("99");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Number("99".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Number("99".to_string()), 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn nine_nine_dot_1_one_returns_digit_99_dot_1() {
     let tokens = scan_program_clean("99.1");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Number("99.1".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Number("99.1".to_string()), 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn nine_nine_dot_returns_digit_99_dot_0() {
     let tokens = scan_program_clean("99.");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Number("99.".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Number("99.".to_string()), 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
-
 
   #[test]
   fn dot_nine_nine_returns_token_dot_and_token_digit_99() {
     let tokens = scan_program_clean(".99");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Dot, 1),
-      Token::new(TokenKind::Number("99".to_string()), 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Dot, 1),
+        Token::new(TokenKind::Number("99".to_string()), 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
   }
 
   #[test]
   fn white_spaces_are_ignored() {
     let tokens = scan_program_clean("( )");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::RightParen, 1),
-      Token::new(TokenKind::Eof, 1),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftParen, 1),
+        Token::new(TokenKind::RightParen, 1),
+        Token::new(TokenKind::Eof, 1),
+      ]
+    );
     let tokens = scan_program_clean(" ");
-    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 1), ]);
+    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 1),]);
   }
 
   #[test]
   fn new_lines_do_not_produce_any_token() {
     let tokens = scan_program_clean("(\n)");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::RightParen, 2),
-      Token::new(TokenKind::Eof, 2),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftParen, 1),
+        Token::new(TokenKind::RightParen, 2),
+        Token::new(TokenKind::Eof, 2),
+      ]
+    );
     let tokens = scan_program_clean("\n");
-    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 2), ]);
+    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 2),]);
   }
 
   #[test]
   fn windows_new_lines_do_not_produce_any_token() {
     let tokens = scan_program_clean("(\r\n)");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::RightParen, 2),
-      Token::new(TokenKind::Eof, 2),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftParen, 1),
+        Token::new(TokenKind::RightParen, 2),
+        Token::new(TokenKind::Eof, 2),
+      ]
+    );
     let tokens = scan_program_clean("\r\n");
     assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 2)]);
   }
-
 
   #[test]
   fn string_test() {
     let tokens = scan_program_clean("\"foo\"");
 
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::String("foo".to_string()), 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::String("foo".to_string()), 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn string_can_have_any_character_inside() {
     let string_content = "(){}\\+-.,;: \n \r 123 asd ";
     let tokens = scan_program_clean(&format!("\"{}\"", string_content));
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::String(string_content.to_string()), 1),
-      Token::new(TokenKind::Eof, 2)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::String(string_content.to_string()), 1),
+        Token::new(TokenKind::Eof, 2)
+      ]
+    );
   }
 
   #[test]
   fn identifier_test() {
     let tokens = scan_program_clean("holu");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Identifier("holu".to_string()), 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Identifier("holu".to_string()), 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn and_test() {
     let tokens = scan_program_clean("and");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::And, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::And, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn class_test() {
     let tokens = scan_program_clean("class");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Class, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Class, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn else_test() {
     let tokens = scan_program_clean("else");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Else, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Else, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn false_test() {
     let tokens = scan_program_clean("false");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::False, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::False, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn fun_test() {
     let tokens = scan_program_clean("fun");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Fun, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::Fun, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn for_test() {
     let tokens = scan_program_clean("for");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::For, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::For, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn if_test() {
     let tokens = scan_program_clean("if");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::If, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::If, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn nil_test() {
     let tokens = scan_program_clean("nil");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Nil, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::Nil, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn or_test() {
     let tokens = scan_program_clean("or");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Or, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::Or, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn print_test() {
     let tokens = scan_program_clean("print");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Print, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Print, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn return_test() {
     let tokens = scan_program_clean("return");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Return, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Return, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn super_test() {
     let tokens = scan_program_clean("super");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Super, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::Super, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn this_test() {
     let tokens = scan_program_clean("this");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::This, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::This, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn true_test() {
     let tokens = scan_program_clean("true");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::True, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::True, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn var_test() {
     let tokens = scan_program_clean("var");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Var, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![Token::new(TokenKind::Var, 1), Token::new(TokenKind::Eof, 1)]
+    );
   }
 
   #[test]
   fn while_test() {
     let tokens = scan_program_clean("while");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::While, 1),
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::While, 1),
+        Token::new(TokenKind::Eof, 1)
+      ]
+    );
   }
 
   #[test]
   fn eof_test() {
     let tokens = scan_program_clean("");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 1)]);
   }
 
   #[test]
@@ -672,7 +778,6 @@ mod tests {
 
     assert_eq!(errors, vec!["[line 1] Error: Unexpected character: $"])
   }
-
 
   #[test]
   fn errors_track_line_number() {
@@ -684,27 +789,26 @@ mod tests {
   #[test]
   fn only_one_commented_line_produce_nothing() {
     let tokens = scan_program_clean("// this is a comment");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 1)]);
   }
 
   #[test]
   fn comments_can_include_unknown_characters() {
     let tokens = scan_program_clean("// $@#");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::Eof, 1)
-    ]);
+    assert_eq!(tokens, vec![Token::new(TokenKind::Eof, 1)]);
   }
 
   #[test]
   fn comments_end_at_the_end_if_the_line() {
     let tokens = scan_program_clean("(// $@#\n)");
-    assert_eq!(tokens, vec![
-      Token::new(TokenKind::LeftParen, 1),
-      Token::new(TokenKind::RightParen, 2),
-      Token::new(TokenKind::Eof, 2),
-    ]);
+    assert_eq!(
+      tokens,
+      vec![
+        Token::new(TokenKind::LeftParen, 1),
+        Token::new(TokenKind::RightParen, 2),
+        Token::new(TokenKind::Eof, 2),
+      ]
+    );
   }
 
   #[test]

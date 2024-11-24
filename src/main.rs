@@ -1,13 +1,11 @@
-mod scan;
-mod parse;
 mod interpret;
+mod parse;
+mod scan;
 
+use clap::{Parser, Subcommand};
 use std::fs::File;
 use std::process::ExitCode;
-use clap::{Parser, Subcommand};
 
-use scan::scanner::Scanner;
-use parse::parser::LoxParser;
 use crate::interpret::error::RuntimeError;
 use crate::interpret::interpreter::Interpreter;
 use crate::parse::expr::Expr;
@@ -15,6 +13,8 @@ use crate::parse::parse_error::ParseError;
 use crate::parse::print_ast::PrintAst;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
+use parse::parser::LoxParser;
+use scan::scanner::Scanner;
 
 #[derive(Debug, Parser)] // requires `derive` feature
 #[command(name = "git")]
@@ -24,38 +24,29 @@ struct Cli {
   command: Commands,
 }
 
-
 #[derive(Debug, Subcommand)]
 enum Commands {
   #[command(arg_required_else_help = true)]
-  Tokenize {
-    file_path: String,
-  },
+  Tokenize { file_path: String },
 
   #[command(arg_required_else_help = true)]
-  Parse {
-    file_path: String,
-  },
+  Parse { file_path: String },
   #[command(arg_required_else_help = true)]
-  Evaluate {
-    file_path: String,
-  },
+  Evaluate { file_path: String },
   #[command(arg_required_else_help = true)]
-  Run {
-    file_path: String,
-  },
+  Run { file_path: String },
 }
 
 struct ReportError {
   exit_code: u8,
-  errors: Vec<String>
+  errors: Vec<String>,
 }
 
 impl From<Vec<String>> for ReportError {
   fn from(value: Vec<String>) -> Self {
     ReportError {
       errors: value,
-      exit_code: 65
+      exit_code: 65,
     }
   }
 }
@@ -64,7 +55,7 @@ impl From<std::io::Error> for ReportError {
   fn from(_value: std::io::Error) -> Self {
     ReportError {
       errors: vec!["Cannot read source file".to_string()],
-      exit_code: 1
+      exit_code: 1,
     }
   }
 }
@@ -73,7 +64,7 @@ impl From<ParseError> for ReportError {
   fn from(value: ParseError) -> Self {
     ReportError {
       exit_code: 65,
-      errors: vec![value.to_string()]
+      errors: vec![value.to_string()],
     }
   }
 }
@@ -82,14 +73,14 @@ impl From<RuntimeError> for ReportError {
   fn from(value: RuntimeError) -> Self {
     ReportError {
       exit_code: 70,
-      errors: vec![value.to_string()]
+      errors: vec![value.to_string()],
     }
   }
 }
 
 fn scan(input: &mut File) -> Result<Vec<Token>, ReportError> {
   let scanner = Scanner::new(input);
-  let (tokens, errors ) = scanner.scan_tokens();
+  let (tokens, errors) = scanner.scan_tokens();
   if errors.len() > 0 {
     Err(errors)?
   } else {
@@ -111,7 +102,10 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
         for line in strings {
           println!("{line}")
         }
-        return Err(ReportError{ errors: vec![], exit_code: 65 })
+        return Err(ReportError {
+          errors: vec![],
+          exit_code: 65,
+        });
       }
 
       let strings = tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>();
@@ -133,11 +127,11 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
       let expr = match ast {
         Stmt::Expr(expr) => expr,
         Stmt::Print(expr) => expr,
-        _ => panic!("Evaluate can only evaluate a single expression")
+        _ => panic!("Evaluate can only evaluate a single expression"),
       };
 
       Ok(interpret_expr(expr)?)
-    },
+    }
     Commands::Run { file_path } => {
       let mut input = File::open(&file_path)?;
       let tokens = scan(&mut input)?;
@@ -149,8 +143,7 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
 
 fn interpret_expr(expr: &Expr) -> Result<String, RuntimeError> {
   let mut interpreter = Interpreter::new();
-  interpreter.interpret_expr(&expr)
-    .map(|v| v.to_string() )
+  interpreter.interpret_expr(&expr).map(|v| v.to_string())
 }
 
 fn interpret(stmts: Vec<Stmt>) -> Result<String, RuntimeError> {

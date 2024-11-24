@@ -15,7 +15,7 @@ impl PrintAst {
         Stmt::Expr(expr) => self.print_expr(expr),
         Stmt::Print(expr) => format!("(print {})", self.print_expr(expr)),
         Stmt::Var(name, value, _) => format!("(def_var `{}` {})", name, self.print_expr(value)),
-        Stmt::ScopeBlock(stmts) => format!("(block_scope {})", self.print_stmts(stmts) ),
+        Stmt::ScopeBlock(stmts) => format!("(block_scope {})", self.print_stmts(stmts)),
       };
       lines.push(line);
     }
@@ -28,12 +28,24 @@ impl PrintAst {
       Expr::LiteralString { value } => format!("{value}"),
       Expr::LiteralBool { value } => format!("{value}"),
       Expr::LiteralNil => "nil".to_string(),
-      Expr::Unary { operator, right } => format!("({} {})", operator.kind().symbol(), self.print_expr(right)),
-      Expr::Binary { left, operator, right } =>
-        format!("({} {} {})", operator.kind().symbol(), self.print_expr(left), self.print_expr(right)),
+      Expr::Unary { operator, right } => {
+        format!("({} {})", operator.kind().symbol(), self.print_expr(right))
+      }
+      Expr::Binary {
+        left,
+        operator,
+        right,
+      } => format!(
+        "({} {} {})",
+        operator.kind().symbol(),
+        self.print_expr(left),
+        self.print_expr(right)
+      ),
       Expr::Group { expression } => format!("(group {})", self.print_expr(expression)),
       Expr::Variable { name, .. } => format!("`{}`", name),
-      Expr::Assign { name, value , .. } => format!("(assign_var `{}` {})", name, self.print_expr(value))
+      Expr::Assign { name, value, .. } => {
+        format!("(assign_var `{}` {})", name, self.print_expr(value))
+      }
     }
   }
 }

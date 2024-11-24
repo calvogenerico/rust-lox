@@ -12,7 +12,7 @@ impl Value {
       Value::Number(value) => format!("{value}"),
       Value::Nil => "nil".to_string(),
       Value::Boolean(value) => format!("{value}"),
-      Value::String(value) => value.to_string()
+      Value::String(value) => value.to_string(),
     }
   }
 
