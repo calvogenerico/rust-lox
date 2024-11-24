@@ -31,7 +31,10 @@ impl PrintAst {
         "(if {} {} {})",
         self.print_expr(condition),
         self.print_stmt(then),
-        els.as_ref().map(|stmt| self.print_stmt(&stmt)).unwrap_or("".to_string()) ,
+        els
+          .as_ref()
+          .map(|stmt| self.print_stmt(&stmt))
+          .unwrap_or("".to_string()),
       ),
     }
   }

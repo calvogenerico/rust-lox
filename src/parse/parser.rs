@@ -93,11 +93,17 @@ impl LoxParser {
     self.consume(TokenKind::RightParen)?;
     let then = self.statement().map(|s| Box::new(s))?;
 
-    let els = self.advance_if_match(&[TokenKind::Else])
+    let els = self
+      .advance_if_match(&[TokenKind::Else])
       .map(|_| ())
-      .map(|_| self.statement().map(|s| Box::new(s))).transpose()?;
+      .map(|_| self.statement().map(|s| Box::new(s)))
+      .transpose()?;
 
-    Ok(Stmt::If { condition, then, els })
+    Ok(Stmt::If {
+      condition,
+      then,
+      els,
+    })
   }
 
   fn scope_block(&mut self) -> Result<Stmt, ParseError> {

@@ -6,5 +6,9 @@ pub enum Stmt {
   Print(Expr),
   Var(String, Expr, usize),
   ScopeBlock(Vec<Stmt>),
-  If{ condition: Expr, then: Box<Stmt>, els: Option<Box<Stmt>> }
+  If {
+    condition: Expr,
+    then: Box<Stmt>,
+    els: Option<Box<Stmt>>,
+  },
 }

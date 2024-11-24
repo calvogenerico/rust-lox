@@ -1,4 +1,3 @@
-use std::slice::from_ref;
 use crate::interpret::environment::Environment;
 use crate::interpret::error::RuntimeError;
 use crate::interpret::value::Value;
@@ -6,6 +5,7 @@ use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
+use std::slice;
 
 pub struct Interpreter {
   env: Option<Environment>,
@@ -38,7 +38,11 @@ impl Interpreter {
           value
         }
         Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts)?,
-        Stmt::If { condition, then, els } => self.interpret_if(condition, then, els.as_ref())?
+        Stmt::If {
+          condition,
+          then,
+          els,
+        } => self.interpret_if(condition, then, els.as_ref().map(|b| &**b))?,
       };
       last_value = value;
     }
@@ -62,12 +66,19 @@ impl Interpreter {
     value
   }
 
-  fn interpret_if(&mut self, condition: &Expr, then: &Stmt, els: Option<&Box<Stmt>>) -> Result<Value, RuntimeError> {
+  fn interpret_if(
+    &mut self,
+    condition: &Expr,
+    then: &Stmt,
+    els: Option<&Stmt>,
+  ) -> Result<Value, RuntimeError> {
     let value = self.interpret_expr(condition)?;
     if self.is_truthy(&value) {
-      self.interpret_stmts(from_ref(then))
+      self.interpret_stmts(slice::from_ref(then))
     } else {
-      els.map(|stmt| self.interpret_stmts(from_ref(stmt))).unwrap_or(Ok(Value::Nil))
+      els
+        .map(|stmt| self.interpret_stmts(slice::from_ref(stmt)))
+        .unwrap_or(Ok(Value::Nil))
     }
   }
 
