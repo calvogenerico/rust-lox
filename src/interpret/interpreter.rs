@@ -1,3 +1,4 @@
+use std::io::Write;
 use crate::interpret::environment::Environment;
 use crate::interpret::error::RuntimeError;
 use crate::interpret::value::Value;
@@ -7,50 +8,54 @@ use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 use std::slice;
 
-pub struct Interpreter {
+pub struct Interpreter<W: Write> {
   env: Option<Environment>,
+  stdout: W
 }
 
-impl Interpreter {
-  pub fn new() -> Self {
+impl <W: Write> Interpreter<W> {
+  pub fn new(writer: W) -> Self {
     Interpreter {
       env: Some(Environment::new()),
+      stdout: writer
     }
-  }
-
-  fn with_env(env: Environment) -> Interpreter {
-    Interpreter { env: Some(env) }
   }
 
   pub fn interpret_stmts(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
-    let mut last_value: Value = Value::Nil;
     for stmt in stmts {
-      last_value = self.interpret_stmt(stmt)?;
+      self.interpret_stmt(stmt)?;
     }
-    Ok(last_value)
+    Ok(Value::Nil)
   }
 
-  pub fn interpret_stmt(&mut self, stmt: &Stmt) -> Result<Value, RuntimeError> {
+  pub fn interpret_stmt(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
     match stmt {
-      Stmt::Expr(expr) => self.interpret_expr(expr),
+      Stmt::Expr(expr) => {
+        self.interpret_expr(expr)?;
+      }
       Stmt::Print(expr) => {
         let value = self.interpret_expr(expr)?;
-        println!("{}", &value.to_string());
-        Ok(value)
+        writeln!(self.stdout, "{}", &value.to_string()).map_err(|_| RuntimeError::CannotWriteToStdout)?;
       }
       Stmt::Var(name, expr, _) => {
         let value = self.interpret_expr(expr)?;
-        self.env().define(name, value.clone());
-        Ok(value)
+        self.env().define(name, value);
       }
-      Stmt::ScopeBlock(stmts) => self.interpret_scope_block(stmts),
+      Stmt::ScopeBlock(stmts) => {
+        self.interpret_scope_block_stmt(stmts)?;
+      }
       Stmt::If {
         condition,
         then,
         els,
-      } => self.interpret_if(condition, then, els.as_ref().map(|b| &**b)),
-      Stmt::While { condition, body } => self.interpret_while(condition, body)
+      } => {
+        self.interpret_if(condition, then, els.as_ref().map(|b| &**b))?;
+      }
+      Stmt::While { condition, body } => {
+        self.interpret_while(condition, body)?;
+      }
     }
+    Ok(())
   }
 
   fn env(&mut self) -> &mut Environment {
@@ -60,14 +65,15 @@ impl Interpreter {
       .expect("environment should always be present")
   }
 
-  fn interpret_scope_block(&mut self, stmts: &[Stmt]) -> Result<Value, RuntimeError> {
+  fn interpret_scope_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
     let enclosing = self.env.take().unwrap();
     let env = Environment::from(enclosing);
-    let mut interpreter = Interpreter::with_env(env);
-    let value = interpreter.interpret_stmts(stmts);
-    let option = interpreter.release();
+    self.env.replace(env);
+    self.interpret_stmts(stmts)?;
+    let env = self.env.take().unwrap();
+    let option = env.release();
     self.env.replace(option.unwrap());
-    value
+    Ok(())
   }
 
   fn interpret_if(
@@ -75,26 +81,21 @@ impl Interpreter {
     condition: &Expr,
     then: &Stmt,
     els: Option<&Stmt>,
-  ) -> Result<Value, RuntimeError> {
+  ) -> Result<(), RuntimeError> {
     let value = self.interpret_expr(condition)?;
     if self.is_truthy(&value) {
-      self.interpret_stmts(slice::from_ref(then))
+      self.interpret_stmts(slice::from_ref(then))?;
     } else {
-      els
-        .map(|stmt| self.interpret_stmts(slice::from_ref(stmt)))
-        .unwrap_or(Ok(Value::Nil))
+      els.map(|stmt| self.interpret_stmts(slice::from_ref(stmt))).transpose()?;
     }
+    Ok(())
   }
 
-  fn interpret_while(&mut self, condition: &Expr, body: &Stmt) -> Result<Value, RuntimeError> {
+  fn interpret_while(&mut self, condition: &Expr, body: &Stmt) -> Result<(), RuntimeError> {
     while self.interpret_expr(condition).map(|v| self.is_truthy(&v))? {
       self.interpret_stmt(body)?;
     }
-    Ok(Value::Nil)
-  }
-
-  fn release(self) -> Option<Environment> {
-    self.env.unwrap().release()
+    Ok(())
   }
 
   pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
@@ -202,295 +203,297 @@ mod tests {
   use crate::scan::scanner::Scanner;
   use std::io::Cursor;
 
-  fn interpret_program(src: &str) -> Result<Value, RuntimeError> {
+  fn interpret_program(src: &str) -> Result<String, RuntimeError> {
     let mut cursor = Cursor::new(src);
     let scanner = Scanner::new(&mut cursor);
     let tokens = scanner.scan_tokens().0;
     let stmts = LoxParser::new(tokens).parse().unwrap();
-    let mut interpreter = Interpreter::new();
-    interpreter.interpret_stmts(&stmts)
+    let mut fake_stdout: Vec<u8> = vec![];
+    let mut interpreter = Interpreter::new(&mut fake_stdout);
+    interpreter.interpret_stmts(&stmts)?;
+    Ok(String::from_utf8(fake_stdout).unwrap())
   }
 
   #[test]
   fn eval_number_1() {
-    let interpreted = interpret_program("1;");
+    let interpreted = interpret_program("print 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(1f64))
+    assert_eq!(res, "1\n");
   }
 
   #[test]
   fn eval_number_2() {
-    let interpreted = interpret_program("2;");
+    let interpreted = interpret_program("print 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(2f64))
+    assert_eq!(res, "2\n");
   }
 
   #[test]
   fn eval_nil() {
-    let interpreted = interpret_program("nil;");
+    let interpreted = interpret_program("print nil;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Nil)
+    assert_eq!(res, "nil\n")
   }
 
   #[test]
   fn eval_true() {
-    let interpreted = interpret_program("true;");
+    let interpreted = interpret_program("print true;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_false() {
-    let interpreted = interpret_program("false;");
+    let interpreted = interpret_program("print false;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_minus_one() {
-    let interpreted = interpret_program("-1;");
+    let interpreted = interpret_program("print -1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(-1.0))
+    assert_eq!(res, "-1\n")
   }
 
   #[test]
   fn eval_minus_string() {
-    let interpreted = interpret_program("\"foo\";");
+    let interpreted = interpret_program("print \"foo\";");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::String("foo".to_string()))
+    assert_eq!(res, "foo\n")
   }
 
   #[test]
   fn eval_not_true_returns_false() {
-    let interpreted = interpret_program("!true;");
+    let interpreted = interpret_program("print !true;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_not_false_returns_true() {
-    let interpreted = interpret_program("!false;");
+    let interpreted = interpret_program("print !false;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_not_a_positive_number_returns_false() {
     // any number is truthy
-    let interpreted = interpret_program("!1.0;");
+    let interpreted = interpret_program("print !1.0;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
   //
   #[test]
   fn eval_not_zero_returns_false() {
     // any number is truthy
-    let interpreted = interpret_program("!0;");
+    let interpreted = interpret_program("print !0;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_not_nil_returns_true() {
-    let interpreted = interpret_program("!nil;");
+    let interpreted = interpret_program("print !nil;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_a_group_returns_inner_expr() {
-    let interpreted = interpret_program("(1);");
+    let interpreted = interpret_program("print (1);");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(1.0))
+    assert_eq!(res, "1\n")
   }
 
   #[test]
   fn eval_an_addition_returns_the_result() {
-    let interpreted = interpret_program("1 + 2;");
+    let interpreted = interpret_program("print 1 + 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(3.0))
+    assert_eq!(res, "3\n")
   }
 
   #[test]
   fn eval_a_subtraction_returns_the_result() {
-    let interpreted = interpret_program("5 - 1;");
+    let interpreted = interpret_program("print 5 - 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(4.0))
+    assert_eq!(res, "4\n")
   }
 
   #[test]
   fn eval_a_subtraction_can_return_negative_number() {
-    let interpreted = interpret_program("5 - 12;");
+    let interpreted = interpret_program("print 5 - 12;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(-7.0))
+    assert_eq!(res, "-7\n")
   }
 
   #[test]
   fn eval_a_plus_between_strings_concatenate_strings() {
-    let interpreted = interpret_program("\"foo\" + \"bar\";");
+    let interpreted = interpret_program("print \"foo\" + \"bar\";");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::String("foobar".to_string()))
+    assert_eq!(res, "foobar\n")
   }
 
   #[test]
   fn eval_a_star_between_numbers_multiplies() {
-    let interpreted = interpret_program("7 * 3;");
+    let interpreted = interpret_program("print 7 * 3;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(21.0))
+    assert_eq!(res, "21\n")
   }
 
   #[test]
   fn eval_a_slash_between_numbers_divides() {
-    let interpreted = interpret_program("1 / 2;");
+    let interpreted = interpret_program("print 1 / 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Number(0.5))
+    assert_eq!(res, "0.5\n")
   }
 
   #[test]
   fn eval_1_lower_than_2_returns_true() {
-    let interpreted = interpret_program("1 < 2;");
+    let interpreted = interpret_program("print 1 < 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_2_lower_than_1_returns_false() {
-    let interpreted = interpret_program("2 < 1;");
+    let interpreted = interpret_program("print 2 < 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_lower_than_1_returns_false() {
-    let interpreted = interpret_program("1 < 1;");
+    let interpreted = interpret_program("print 1 < 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_lower_equal_than_2_returns_true() {
-    let interpreted = interpret_program("1 <= 2;");
+    let interpreted = interpret_program("print 1 <= 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_1_lower_equal_than_1_returns_true() {
-    let interpreted = interpret_program("1 <= 1;");
+    let interpreted = interpret_program("print 1 <= 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_2_lower_equal_than_1_returns_false() {
-    let interpreted = interpret_program("2 <= 1;");
+    let interpreted = interpret_program("print 2 <= 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_greater_than_2_returns_true() {
-    let interpreted = interpret_program("1 >= 2;");
+    let interpreted = interpret_program("print 1 >= 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_greater_than_1_returns_true() {
-    let interpreted = interpret_program("1 > 1;");
+    let interpreted = interpret_program("print 1 > 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_2_greater_than_1_returns_false() {
-    let interpreted = interpret_program("2 > 1;");
+    let interpreted = interpret_program("print 2 > 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_1_greater_equal_than_2_returns_true() {
-    let interpreted = interpret_program("1 >= 2;");
+    let interpreted = interpret_program("print 1 >= 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_greater_equal_than_1_returns_true() {
-    let interpreted = interpret_program("1 >= 1;");
+    let interpreted = interpret_program("print 1 >= 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_2_greater_equal_than_1_returns_false() {
-    let interpreted = interpret_program("2 >= 1;");
+    let interpreted = interpret_program("print 2 >= 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_1_equal_1_returns_true() {
-    let interpreted = interpret_program("1 == 1;");
+    let interpreted = interpret_program("print 1 == 1;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
   fn eval_1_equal_string_1_returns_false() {
-    let interpreted = interpret_program("1 == \"1\";");
+    let interpreted = interpret_program("print 1 == \"1\";");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
-  //
+
   #[test]
   fn eval_holu_not_equal_holu_returns_false() {
-    let interpreted = interpret_program("\"holu\" != \"holu\";");
+    let interpreted = interpret_program("print \"holu\" != \"holu\";");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(false))
+    assert_eq!(res, "false\n")
   }
 
   #[test]
   fn eval_1_not_equal_2_returns_true() {
-    let interpreted = interpret_program("1 != 2;");
+    let interpreted = interpret_program("print 1 != 2;");
     let res = interpreted.unwrap();
 
-    assert_eq!(res, Value::Boolean(true))
+    assert_eq!(res, "true\n")
   }
 
   #[test]
@@ -616,26 +619,26 @@ mod tests {
 
   #[test]
   fn assign_variable_and_return_variables_returns_the_value_of_the_variable() {
-    let interpreted = interpret_program("var a = \"success\"; a;");
+    let interpreted = interpret_program("var a = \"success\"; print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::String("success".to_string()));
+    assert_eq!(res, "success\n");
   }
 
   #[test]
   fn re_assign_variable_saves_last_value() {
-    let interpreted = interpret_program("var a = 1; a = 2; a;");
+    let interpreted = interpret_program("var a = 1; a = 2; print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(2.0));
+    assert_eq!(res, "2\n");
   }
 
   #[test]
   fn re_define_variable_is_valid() {
-    let interpreted = interpret_program("var a = 1; var a = 2;");
+    let interpreted = interpret_program("var a = 1; var a = 2; print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(2.0));
+    assert_eq!(res, "2\n");
   }
 
   #[test]
@@ -648,50 +651,49 @@ mod tests {
 
   #[test]
   fn scopes_can_be_executed_ok() {
-    let interpreted = interpret_program("var a; { a = 1;} a;");
+    let interpreted = interpret_program("var a; { a = 1;} print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(1.0));
+    assert_eq!(res, "1\n");
   }
 
   #[test]
   fn redefine_variable_inside_scope_do_not_change_outside_scope() {
-    let interpreted = interpret_program("var a = 1; { var a = 2;} a;");
+    let interpreted = interpret_program("var a = 1; { var a = 2;} print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(1.0));
+    assert_eq!(res, "1\n");
   }
 
   #[test]
   fn exec_if_when_condition_is_true() {
-    let interpreted = interpret_program("var a; if (true) { a = 10; } a");
+    let interpreted = interpret_program("var a; if (true) { a = 10; } print a");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(10.0));
+    assert_eq!(res, "10\n");
   }
 
   #[test]
   fn exec_if_when_condition_is_false_and_no_else() {
-    let interpreted = interpret_program("var a; if (false) { a = 10; } a");
+    let interpreted = interpret_program("var a; if (false) { a = 10; } print a");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Nil);
+    assert_eq!(res, "nil\n");
   }
 
   #[test]
   fn exec_if_when_condition_is_false_and_else_clause() {
-    let interpreted = interpret_program("var a; if (false) { a = 10; } else { a = -11; }  a");
+    let interpreted = interpret_program("var a; if (false) { a = 10; } else { a = -11; } print a");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(-11.0));
+    assert_eq!(res, "-11\n");
   }
 
   #[test]
   fn can_exec_a_while_stmt() {
-    let interpreted = interpret_program("var a = 0; while (a < 10) a = a + 1; a;");
+    let interpreted = interpret_program("var a = 0; while (a < 10) a = a + 1; print a;");
 
     let res = interpreted.unwrap();
-    assert_eq!(res, Value::Number(10.0));
+    assert_eq!(res, "10\n");
   }
-
 }

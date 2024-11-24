@@ -13,6 +13,6 @@ pub enum Stmt {
   },
   While {
     condition: Expr,
-    body: Box<Stmt>
+    body: Box<Stmt>,
   },
 }

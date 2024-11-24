@@ -65,19 +65,20 @@ impl LoxParser {
   }
 
   fn statement(&mut self) -> Result<Stmt, ParseError> {
-
-
-    let stmt = match self.advance_if_match(&[
-      TokenKind::Print,
-      TokenKind::If,
-      TokenKind::LeftBrace,
-      TokenKind::While
-    ]).map(|t| t.kind()) {
+    let stmt = match self
+      .advance_if_match(&[
+        TokenKind::Print,
+        TokenKind::If,
+        TokenKind::LeftBrace,
+        TokenKind::While,
+      ])
+      .map(|t| t.kind())
+    {
       Some(TokenKind::Print) => self.print_stmt()?,
       Some(TokenKind::If) => self.if_stmt()?,
       Some(TokenKind::LeftBrace) => self.scope_block()?,
       Some(TokenKind::While) => self.while_stmt()?,
-      _ => self.expression_stmt()?
+      _ => self.expression_stmt()?,
     };
 
     Ok(stmt)

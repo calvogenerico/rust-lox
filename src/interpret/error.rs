@@ -10,4 +10,6 @@ pub enum RuntimeError {
   InvalidExpression,
   #[error("[line {0}]: Undefined variable: {1}")]
   UndefinedVariable(usize, String),
+  #[error("Cannot write to stdout")]
+  CannotWriteToStdout,
 }

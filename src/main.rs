@@ -142,12 +142,14 @@ fn exec_main(cli: Cli) -> Result<String, ReportError> {
 }
 
 fn interpret_expr(expr: &Expr) -> Result<String, RuntimeError> {
-  let mut interpreter = Interpreter::new();
+  let stdout = std::io::stdout().lock();
+  let mut interpreter = Interpreter::new(stdout);
   interpreter.interpret_expr(&expr).map(|v| v.to_string())
 }
 
 fn interpret(stmts: Vec<Stmt>) -> Result<String, RuntimeError> {
-  let mut interpreter = Interpreter::new();
+  let stdout = std::io::stdout().lock();
+  let mut interpreter = Interpreter::new(stdout);
   interpreter.interpret_stmts(&stmts)?;
   Ok(String::new())
 }

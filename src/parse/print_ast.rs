@@ -40,7 +40,7 @@ impl PrintAst {
         "(while {} {})",
         self.print_expr(condition),
         self.print_stmt(body)
-      )
+      ),
     }
   }
 
