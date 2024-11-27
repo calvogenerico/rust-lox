@@ -41,6 +41,7 @@ impl PrintAst {
         self.print_expr(condition),
         self.print_stmt(body)
       ),
+      _ => unimplemented!()
     }
   }
 
@@ -78,6 +79,10 @@ impl PrintAst {
         self.print_expr(left),
         self.print_expr(right)
       ),
+      Expr::Call { callee, args, .. } => {
+        let args: Vec<String> = args.iter().map(|a| self.print_expr(a)).collect();
+        format!("(call {} ({}))", self.print_expr(callee), args.join(" "))
+      }
     }
   }
 }

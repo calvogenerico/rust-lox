@@ -25,6 +25,11 @@ pub enum Expr {
     operator: Token,
     right: Box<Expr>,
   },
+  Call {
+    line: usize,
+    callee: Box<Expr>,
+    args: Vec<Expr>
+  },
   Group {
     expression: Box<Expr>,
   },

@@ -145,9 +145,7 @@ impl LoxParser {
 
     // Var declaration -- for (HERE;;) {}
     let declaration = match self.advance_if_match(&[TokenKind::Semicolon]) {
-      Some(_) => {
-        None
-      }
+      Some(_) => None,
       None => {
         if let Some(_) = self.advance_if_match(&[TokenKind::Var]) {
           Some(self.var_declaration()?)
@@ -158,16 +156,17 @@ impl LoxParser {
     };
 
     // Ending condition -- for (;HERE;) {}
-    let condition = self.peek_kind()
+    let condition = self
+      .peek_kind()
       .filter(|k| **k != TokenKind::Semicolon)
       .map(|_| ())
       .map(|_| self.expression())
       .transpose()?;
     self.consume(TokenKind::Semicolon)?;
 
-
     // Increment -- for (;;HERE) {}
-    let increment = self.peek_kind()
+    let increment = self
+      .peek_kind()
       .filter(|k| **k != TokenKind::RightParen)
       .map(|_| ())
       .map(|_| self.expression())
@@ -177,11 +176,10 @@ impl LoxParser {
     // Body -- for (;;) HERE
     let for_body = self.statement()?;
 
-
     // Assemble all together
     let while_body = match increment {
-      Some(inc) => Stmt::ScopeBlock(vec![for_body, Stmt::Expr(inc) ]),
-      None => for_body
+      Some(inc) => Stmt::ScopeBlock(vec![for_body, Stmt::Expr(inc)]),
+      None => for_body,
     };
 
     let while_stmt = Stmt::While {
@@ -191,7 +189,7 @@ impl LoxParser {
 
     let mut stmts = match declaration {
       Some(stmt) => vec![stmt],
-      None => vec![]
+      None => vec![],
     };
 
     stmts.push(while_stmt);
@@ -350,7 +348,36 @@ impl LoxParser {
       });
     }
 
-    self.primary()
+    self.call()
+  }
+
+  fn call(&mut self) -> Result<Expr, ParseError> {
+    let mut expr = self.primary()?;
+
+    while let Some(TokenKind::LeftParen) = self.peek_kind() {
+      let paren_line = self.consume(TokenKind::LeftParen)?.line();
+
+      // let args = vec![];
+      let args = if let Some(_) = self.advance_if_match(&[TokenKind::RightParen]) {
+        vec![]
+      } else {
+        let mut args = vec![];
+
+        loop {
+          if let Some(_) = self.advance_if_match(&[TokenKind::RightParen]) {
+            break;
+          }
+
+          args.push(self.expression()?);
+          self.advance_if_match(&[TokenKind::Comma]);
+        }
+
+        args
+      };
+
+      expr = Expr::Call { line: paren_line, callee: Box::new(expr), args }
+    }
+    Ok(expr)
   }
 
   fn primary(&mut self) -> Result<Expr, ParseError> {
@@ -904,5 +931,23 @@ mod tests {
       ast,
       "(block_scope (assign_var `i` 0.0) (while (< `i` 3.0) (print `i`)))"
     );
+  }
+
+  #[test]
+  fn can_parse_a_function_call_with_no_args() {
+    let ast = parse_from_code("somefunc();");
+    assert_eq!(ast, "(call `somefunc` ())");
+  }
+
+  #[test]
+  fn can_parse_a_function_call_with_args() {
+    let ast = parse_from_code("somefunc(1, 2, 3);");
+    assert_eq!(ast, "(call `somefunc` (1.0 2.0 3.0))");
+  }
+
+  #[test]
+  fn can_parse_a_function_call_complex_args_args() {
+    let ast = parse_from_code("somefunc(1, 3 + 2, arg());");
+    assert_eq!(ast, "(call `somefunc` (1.0 (+ 3.0 2.0) (call `arg` ())))");
   }
 }

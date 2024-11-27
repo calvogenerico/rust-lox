@@ -54,6 +54,7 @@ impl <W: Write> Interpreter<W> {
       Stmt::While { condition, body } => {
         self.interpret_while(condition, body)?;
       }
+      Stmt::Function { .. } => unimplemented!()
     }
     Ok(())
   }
@@ -117,7 +118,8 @@ impl <W: Write> Interpreter<W> {
         self.env().assign(name, value.clone(), *line)?;
         Ok(value)
       }
-      Expr::Logical { left, operator, right } => self.logical(left, operator, right)
+      Expr::Logical { left, operator, right } => self.logical(left, operator, right),
+      _ => unimplemented!()
     }
   }
 

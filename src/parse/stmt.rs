@@ -15,4 +15,9 @@ pub enum Stmt {
     condition: Expr,
     body: Box<Stmt>,
   },
+  Function {
+    name: String,
+    params: Vec<String>,
+    body: Vec<Stmt>
+  },
 }
