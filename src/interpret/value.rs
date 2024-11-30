@@ -1,10 +1,16 @@
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
   Number(f64),
   Nil,
   Boolean(bool),
   String(String),
+  // Fn(LoxFn)
 }
+
+// pub struct LoxFn {
+//   context: Environment
+// }
 
 impl Value {
   pub fn to_string(&self) -> String {

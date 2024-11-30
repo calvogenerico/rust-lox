@@ -950,4 +950,10 @@ mod tests {
     let ast = parse_from_code("somefunc(1, 3 + 2, arg());");
     assert_eq!(ast, "(call `somefunc` (1.0 (+ 3.0 2.0) (call `arg` ())))");
   }
+
+  #[test]
+  fn coso_01() {
+    let ast = parse_from_code("var a; if (false) { a = 10; } print a");
+    assert_eq!(ast, "(def_var `a` nil) (if false (block_scope (assign_var `a` 10.0)) ) (print `a`)");
+  }
 }

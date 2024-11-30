@@ -1,5 +1,5 @@
+use std::collections::HashMap;
 use std::io::Write;
-use crate::interpret::environment::Environment;
 use crate::interpret::error::RuntimeError;
 use crate::interpret::value::Value;
 use crate::parse::expr::Expr;
@@ -7,16 +7,23 @@ use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
 use std::slice;
+use crate::interpret::branching_scope::BranchingScope;
 
 pub struct Interpreter<W: Write> {
-  env: Option<Environment>,
+  env: BranchingScope,
+  global_id: usize,
+  current_id: usize,
   stdout: W
 }
 
 impl <W: Write> Interpreter<W> {
   pub fn new(writer: W) -> Self {
+    let mut env = BranchingScope::empty();
+    let global_id =  env.branch(0, HashMap::new());
     Interpreter {
-      env: Some(Environment::new()),
+      env,
+      global_id,
+      current_id: global_id,
       stdout: writer
     }
   }
@@ -39,7 +46,7 @@ impl <W: Write> Interpreter<W> {
       }
       Stmt::Var(name, expr, _) => {
         let value = self.interpret_expr(expr)?;
-        self.env().define(name, value);
+        self.env.define(self.current_id, name, value);
       }
       Stmt::ScopeBlock(stmts) => {
         self.interpret_scope_block_stmt(stmts)?;
@@ -59,23 +66,20 @@ impl <W: Write> Interpreter<W> {
     Ok(())
   }
 
-  fn env(&mut self) -> &mut Environment {
-    self
-      .env
-      .as_mut()
-      .expect("environment should always be present")
-  }
-
   fn interpret_scope_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
-    let enclosing = self.env.take().unwrap();
-    let env = Environment::from(enclosing);
-    self.env.replace(env);
+    let new_scope = self.env.branch(self.current_id, HashMap::new());
+    self.current_id = new_scope;
     self.interpret_stmts(stmts)?;
-    let env = self.env.take().unwrap();
-    let option = env.release();
-    self.env.replace(option.unwrap());
+    self.current_id = self.env.release(self.current_id);
     Ok(())
   }
+
+  // fn branch(&self) -> Interpreter<W> {
+  //   Interpreter {
+  //     env: self.branch(),
+  //     stdout: &self.stdout
+  //   }
+  // }
 
   fn interpret_if(
     &mut self,
@@ -112,10 +116,15 @@ impl <W: Write> Interpreter<W> {
         operator,
         right,
       } => self.binary(left, operator, right),
-      Expr::Variable { name, line } => self.env().get(name, *line).map(|v| v.clone()),
+      Expr::Variable { name, line } => 
+        self.env
+          .get(self.current_id, name)
+          .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))
+          .map(|v| v.clone()),
       Expr::Assign { value, name, line } => {
         let value = self.interpret_expr(value)?;
-        self.env().assign(name, value.clone(), *line)?;
+        self.env.assign(self.current_id, name, value.clone())
+          .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))?;
         Ok(value)
       }
       Expr::Logical { left, operator, right } => self.logical(left, operator, right),
