@@ -116,7 +116,7 @@ impl <W: Write> Interpreter<W> {
         operator,
         right,
       } => self.binary(left, operator, right),
-      Expr::Variable { name, line } => 
+      Expr::Variable { name, line } =>
         self.env
           .get(self.current_id, name)
           .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))

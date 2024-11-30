@@ -37,6 +37,8 @@ impl LoxParser {
   fn declaration(&mut self) -> Result<Stmt, ParseError> {
     if self.advance_if_match(&[TokenKind::Var]).is_some() {
       self.var_declaration()
+    } else if self.advance_if_match(&[TokenKind::Fun]).is_some() {
+      self.function_declaration()
     } else {
       self.statement()
     }
@@ -62,6 +64,41 @@ impl LoxParser {
         format!("Expected identifier, got {}", token.symbol()),
       ))
     }
+  }
+
+  fn function_declaration(&mut self) -> Result<Stmt, ParseError> {
+    let identifier = self.next_token()?;
+    let name = if let TokenKind::Identifier(name) = identifier.kind() {
+      name.to_string()
+    } else {
+      return Err(ParseError::MissingFunctionName(identifier.line()))
+    };
+
+    self.consume(TokenKind::LeftParen)?;
+
+    let mut params = vec![];
+    while self.advance_if_match(&[TokenKind::RightParen]).is_none() {
+      let identifier = self.next_token()?;
+      if let TokenKind::Identifier(param) = identifier.kind() {
+        params.push(param.to_string())
+      } else {
+        return Err(ParseError::MalformedExpression(identifier.line(), identifier.symbol()))
+      }
+
+      match self.peek_kind() {
+        Some(TokenKind::RightParen) => continue,
+        _ => self.consume(TokenKind::Comma)?
+      };
+    }
+
+    self.consume(TokenKind::LeftBrace)?;
+    let body = self.block_of_stmts()?;
+
+    Ok(Stmt::Function {
+      name,
+      params,
+      body
+    })
   }
 
   fn statement(&mut self) -> Result<Stmt, ParseError> {
@@ -115,7 +152,7 @@ impl LoxParser {
     })
   }
 
-  fn scope_block(&mut self) -> Result<Stmt, ParseError> {
+  fn block_of_stmts(&mut self) -> Result<Vec<Stmt>, ParseError> {
     let mut stmts = vec![];
 
     while self
@@ -126,7 +163,11 @@ impl LoxParser {
     }
 
     self.consume(TokenKind::RightBrace)?;
+    Ok(stmts)
+  }
 
+  fn scope_block(&mut self) -> Result<Stmt, ParseError> {
+    let stmts = self.block_of_stmts()?;
     Ok(Stmt::ScopeBlock(stmts))
   }
 
@@ -952,8 +993,14 @@ mod tests {
   }
 
   #[test]
-  fn coso_01() {
-    let ast = parse_from_code("var a; if (false) { a = 10; } print a");
-    assert_eq!(ast, "(def_var `a` nil) (if false (block_scope (assign_var `a` 10.0)) ) (print `a`)");
+  fn can_parse_a_function_def() {
+    let ast = parse_from_code("fun somefunc(a, b) {}");
+    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ())");
+  }
+
+  #[test]
+  fn can_parse_a_function_with_body() {
+    let ast = parse_from_code("fun somefunc(a, b) {a + b; b - a;}");
+    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((+ `a` `b`) (- `b` `a`)))");
   }
 }

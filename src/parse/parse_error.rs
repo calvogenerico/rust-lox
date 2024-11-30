@@ -6,4 +6,6 @@ pub enum ParseError {
   MalformedExpression(usize, String),
   #[error("Unexpected end of file")]
   UnexpectedEndOfFile,
+  #[error("[line {0}]: Expected function name after fun.")]
+  MissingFunctionName(usize),
 }
