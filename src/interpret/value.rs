@@ -31,17 +31,13 @@ impl LoxFn {
       return Err(RuntimeError::WrongNumberOfArguments(line, self.name.clone(), self.params.len(), args.len() ))
     }
 
-    let old_branch = interpreter.current_scope();
-    let branch_id = interpreter.branch(self.context_id);
-    interpreter.change_scope(branch_id);
+    interpreter.with_branching(self.context_id, move |inter| {
+      args.drain(..).enumerate().for_each(|(index, value)| {
+        inter.define_var(&self.params[index], value)
+      });
 
-    args.drain(..).enumerate().for_each(|(index, value)| {
-      interpreter.define_var(&self.params[index], value)
-    });
-
-    interpreter.interpret_stmts(&self.body)?;
-    interpreter.release_scope(branch_id);
-    interpreter.change_scope(old_branch);
+      inter.interpret_stmts(&self.body)
+    })?;
 
     Ok(Value::Nil)
   }

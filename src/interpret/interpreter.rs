@@ -20,6 +20,9 @@ impl<W: Write> Interpreter<W> {
   pub fn new(writer: W) -> Self {
     let mut env = BranchingScope::empty();
     let global_id = env.branch(0, HashMap::new());
+    
+    // env.define(global_id, "clock", Value::);
+    
     Interpreter {
       env,
       // global_id,
@@ -280,7 +283,7 @@ impl<W: Write> Interpreter<W> {
     }
   }
 
-  pub fn with_branching(&mut self, base_branch: usize, action:  impl Fn(&mut Interpreter<W>) -> Result<Value, RuntimeError>) -> Result<Value, RuntimeError> {
+  pub fn with_branching(&mut self, base_branch: usize, action:  impl FnOnce(&mut Interpreter<W>) -> Result<Value, RuntimeError>) -> Result<Value, RuntimeError> {
     let old = self.current_id;
     let new_branch = self.env.branch(base_branch, HashMap::new());
     self.current_id = new_branch;
@@ -290,24 +293,8 @@ impl<W: Write> Interpreter<W> {
     res
   }
 
-  pub fn branch(&mut self, base: usize) -> usize {
-    self.env.branch(base, HashMap::new())
-  }
-
-  pub fn change_scope(&mut self, scope_id: usize) {
-    self.current_id = scope_id
-  }
-
   pub fn define_var(&mut self, name: &str, value: Value) {
     self.env.define(self.current_id, name, value)
-  }
-
-  pub fn current_scope(&self) -> usize {
-    self.current_id
-  }
-
-  pub fn release_scope(&mut self, scope_id: usize) {
-    self.env.release(scope_id);
   }
 }
 
@@ -881,6 +868,18 @@ mod tests {
   fn define_a_function_that_captures_scope_and_call_it() {
     let res = interpret_program("var outside = 10; fun foo(a) { print outside + a; }\n foo(2);").unwrap();
     assert_eq!(res, "12\n");
+  }
+
+  #[test]
+  fn after_a_function_call_the_scope_is_still_ok() {
+    let res = interpret_program("var outside = 10; fun foo(a) { outside + a; }\n foo(2); print outside ").unwrap();
+    assert_eq!(res, "10\n");
+  }
+
+  #[test]
+  fn clock_is_defined_globally() {
+    let res = interpret_program("print clock()").unwrap();
+    assert_eq!(res, "10\n");
   }
 
   // #[test]
