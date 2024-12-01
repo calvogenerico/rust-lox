@@ -1,6 +1,7 @@
 use crate::interpret::branching_scope::BranchingScope;
 use crate::interpret::error::RuntimeError;
-use crate::interpret::value::{Value};
+use crate::interpret::lox_fn::{Callable, NativeFn};
+use crate::interpret::value::Value;
 use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
@@ -8,6 +9,7 @@ use crate::scan::token_kind::TokenKind;
 use std::collections::HashMap;
 use std::io::Write;
 use std::slice;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Interpreter<W: Write> {
   env: BranchingScope,
@@ -20,9 +22,22 @@ impl<W: Write> Interpreter<W> {
   pub fn new(writer: W) -> Self {
     let mut env = BranchingScope::empty();
     let global_id = env.branch(0, HashMap::new());
-    
-    // env.define(global_id, "clock", Value::);
-    
+
+    env.define(
+      global_id,
+      "clock",
+      Value::Callable(Callable::Native(NativeFn::new(
+        "clock".to_string(),
+        |_a| {
+          let start = SystemTime::now();
+          let since_the_epoch = start
+            .duration_since(UNIX_EPOCH)
+            .expect("Time went backwards");
+          Ok(Value::Number(since_the_epoch.as_secs() as f64))
+        }
+      ))),
+    );
+
     Interpreter {
       env,
       // global_id,
@@ -159,7 +174,7 @@ impl<W: Write> Interpreter<W> {
         operator,
         right,
       } => self.logical(left, operator, right),
-      Expr::Call {callee, args, line } => self.interpret_call(callee, args, *line)
+      Expr::Call { callee, args, line } => self.interpret_call(callee, args, *line),
     }
   }
 
@@ -250,13 +265,24 @@ impl<W: Write> Interpreter<W> {
     }
   }
 
-  fn interpret_call(&mut self, callee: &Expr, args: &[Expr], line: usize) -> Result<Value, RuntimeError> {
+  fn interpret_call(
+    &mut self,
+    callee: &Expr,
+    args: &[Expr],
+    line: usize,
+  ) -> Result<Value, RuntimeError> {
     let callee_value = self.interpret_expr(callee)?;
-    let arg_values = args.iter().map(|arg| self.interpret_expr(arg)).collect::<Result<Vec<Value>, RuntimeError>>()?;
-    let lox_fn = if let Value::Fn(lox_fn) = callee_value {
+    let arg_values = args
+      .iter()
+      .map(|arg| self.interpret_expr(arg))
+      .collect::<Result<Vec<Value>, RuntimeError>>()?;
+    let lox_fn = if let Value::Callable(lox_fn) = callee_value {
       lox_fn
     } else {
-      return Err(RuntimeError::NotAFunction(line, callee_value.type_name().to_string()))
+      return Err(RuntimeError::NotAFunction(
+        line,
+        callee_value.type_name().to_string(),
+      ));
     };
 
     lox_fn.call(self, arg_values, line)
@@ -283,7 +309,11 @@ impl<W: Write> Interpreter<W> {
     }
   }
 
-  pub fn with_branching(&mut self, base_branch: usize, action:  impl FnOnce(&mut Interpreter<W>) -> Result<Value, RuntimeError>) -> Result<Value, RuntimeError> {
+  pub fn with_branching(
+    &mut self,
+    base_branch: usize,
+    action: impl FnOnce(&mut Interpreter<W>) -> Result<Value, RuntimeError>,
+  ) -> Result<Value, RuntimeError> {
     let old = self.current_id;
     let new_branch = self.env.branch(base_branch, HashMap::new());
     self.current_id = new_branch;
@@ -866,20 +896,24 @@ mod tests {
 
   #[test]
   fn define_a_function_that_captures_scope_and_call_it() {
-    let res = interpret_program("var outside = 10; fun foo(a) { print outside + a; }\n foo(2);").unwrap();
+    let res =
+      interpret_program("var outside = 10; fun foo(a) { print outside + a; }\n foo(2);").unwrap();
     assert_eq!(res, "12\n");
   }
 
   #[test]
   fn after_a_function_call_the_scope_is_still_ok() {
-    let res = interpret_program("var outside = 10; fun foo(a) { outside + a; }\n foo(2); print outside ").unwrap();
+    let res =
+      interpret_program("var outside = 10; fun foo(a) { outside + a; }\n foo(2); print outside ")
+        .unwrap();
     assert_eq!(res, "10\n");
   }
 
   #[test]
   fn clock_is_defined_globally() {
     let res = interpret_program("print clock()").unwrap();
-    assert_eq!(res, "10\n");
+    let parsed = res.trim().parse::<u64>();
+    assert!(parsed.is_ok());
   }
 
   // #[test]
