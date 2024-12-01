@@ -1,7 +1,5 @@
 use crate::parse::stmt::Stmt;
-use std::io::Write;
-use crate::interpret::error::RuntimeError;
-use crate::interpret::interpreter::Interpreter;
+use crate::interpret::lox_fn::LoxFn;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Value {
@@ -12,45 +10,10 @@ pub enum Value {
   Fn(LoxFn),
 }
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct LoxFn {
-  name: String,
-  params: Vec<String>,
-  body: Vec<Stmt>,
-  context_id: usize,
-}
-
-impl LoxFn {
-  pub fn call <W: Write>(
-    &self,
-    interpreter: &mut Interpreter<W>,
-    mut args: Vec<Value>,
-    line: usize
-  ) -> Result<Value, RuntimeError> {
-    if args.len() != self.params.len() {
-      return Err(RuntimeError::WrongNumberOfArguments(line, self.name.clone(), self.params.len(), args.len() ))
-    }
-
-    interpreter.with_branching(self.context_id, move |inter| {
-      args.drain(..).enumerate().for_each(|(index, value)| {
-        inter.define_var(&self.params[index], value)
-      });
-
-      inter.interpret_stmts(&self.body)
-    })?;
-
-    Ok(Value::Nil)
-  }
-}
 
 impl Value {
   pub fn fun(name: String, params: Vec<String>, body: Vec<Stmt>, context_id: usize) -> Value {
-    Value::Fn(LoxFn {
-      name,
-      params,
-      body,
-      context_id,
-    })
+    Value::Fn(LoxFn::new(name, params, body, context_id))
   }
 
   pub fn to_string(&self) -> String {
