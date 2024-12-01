@@ -29,6 +29,13 @@ impl Node {
       Child { data, .. } => Some(data),
     }
   }
+
+  // fn ref_count(&self) -> usize {
+  //   match self {
+  //     Node::Base => 9999,
+  //     Child { ref_count, .. } => *ref_count
+  //   }
+  // }
 }
 
 pub struct BranchingScope {

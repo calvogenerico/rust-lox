@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::interpret::value::Value;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum RuntimeError {
@@ -18,4 +19,6 @@ pub enum RuntimeError {
   NotAFunction(usize, String),
   #[error("[line {0}]: {1} expeted {2} arguments, but {3} received")]
   WrongNumberOfArguments(usize, String, usize, usize),
+  #[error("return")]
+  Return(Value)
 }

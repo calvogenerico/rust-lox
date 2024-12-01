@@ -1,9 +1,15 @@
-fun a() {
-  var coso = 10;
-  fun b() {
-    print coso;
-  }
-  b();
+fun dameFun() {
+    var a = 0;
+    fun funInterna() {
+      a = a + 1;
+      return a;
+    }
+    return funInterna;
 }
 
-a();
+var devuelta = dameFun();
+
+print devuelta();
+print devuelta();
+print devuelta();
+print devuelta;

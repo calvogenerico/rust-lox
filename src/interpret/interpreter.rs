@@ -83,7 +83,7 @@ impl<W: Write> Interpreter<W> {
       Stmt::Function { name, params, body } => {
         self.interpret_function_definition(name, params, body)?;
       }
-      Stmt::Return(_) => unimplemented!()
+      Stmt::Return(expr) => self.interpret_return(expr)?,
     }
     Ok(())
   }
@@ -133,15 +133,23 @@ impl<W: Write> Interpreter<W> {
     params: &[String],
     body: &[Stmt],
   ) -> Result<Value, RuntimeError> {
+    let new_branch = self.env.branch(self.current_id, HashMap::new());
     let fun = Value::fun(
       name.to_string(),
       params.to_vec(),
       body.to_vec(),
-      self.current_id,
+      new_branch,
     );
+
+
 
     self.env.define(self.current_id, name, fun);
     Ok(Value::Nil)
+  }
+
+  fn interpret_return(&mut self, expr: &Expr) -> Result<(), RuntimeError> {
+    let value = self.interpret_expr(expr)?;
+    Err(RuntimeError::Return(value))
   }
 
   pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
@@ -915,6 +923,32 @@ mod tests {
     let res = interpret_program("print clock()").unwrap();
     let parsed = res.trim().parse::<u64>();
     assert!(parsed.is_ok());
+  }
+
+  #[test]
+  fn function_that_returns() {
+    let res = interpret_program("fun foo() { return 10; } print foo();").unwrap();
+    assert_eq!(res, "10\n");
+  }
+
+  #[test]
+  fn coso() {
+    let src = "fun dameFun() {
+    var a = 0;
+    fun funInterna() {
+      a = a + 1;
+      return a;
+    }
+    return funInterna;
+}
+
+var devuelta = dameFun();
+
+print devuelta();
+";
+
+    let res = interpret_program(src).unwrap();
+    assert_eq!(res, "1\n")
   }
 
 

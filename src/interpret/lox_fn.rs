@@ -115,10 +115,13 @@ impl LoxFn {
         .enumerate()
         .for_each(|(index, value)| inter.define_var(&self.params[index], value));
 
-      inter.interpret_stmts(&self.body)
-    })?;
-
-    Ok(Value::Nil)
+      let call_res = inter.interpret_stmts(&self.body);
+      if let Err(RuntimeError::Return(value)) = call_res {
+        return Ok(value)
+      } else {
+        return call_res
+      }
+    })
   }
 
   pub fn to_string(&self) -> String {
