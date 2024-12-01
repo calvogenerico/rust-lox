@@ -1,30 +1,30 @@
-use std::collections::HashMap;
-use std::io::Write;
+use crate::interpret::branching_scope::BranchingScope;
 use crate::interpret::error::RuntimeError;
-use crate::interpret::value::Value;
+use crate::interpret::value::{Value};
 use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
+use std::collections::HashMap;
+use std::io::Write;
 use std::slice;
-use crate::interpret::branching_scope::BranchingScope;
 
 pub struct Interpreter<W: Write> {
   env: BranchingScope,
-  global_id: usize,
+  // global_id: usize,
   current_id: usize,
-  stdout: W
+  stdout: W,
 }
 
-impl <W: Write> Interpreter<W> {
+impl<W: Write> Interpreter<W> {
   pub fn new(writer: W) -> Self {
     let mut env = BranchingScope::empty();
-    let global_id =  env.branch(0, HashMap::new());
+    let global_id = env.branch(0, HashMap::new());
     Interpreter {
       env,
-      global_id,
+      // global_id,
       current_id: global_id,
-      stdout: writer
+      stdout: writer,
     }
   }
 
@@ -42,7 +42,8 @@ impl <W: Write> Interpreter<W> {
       }
       Stmt::Print(expr) => {
         let value = self.interpret_expr(expr)?;
-        writeln!(self.stdout, "{}", &value.to_string()).map_err(|_| RuntimeError::CannotWriteToStdout)?;
+        writeln!(self.stdout, "{}", &value.to_string())
+          .map_err(|_| RuntimeError::CannotWriteToStdout)?;
       }
       Stmt::Var(name, expr, _) => {
         let value = self.interpret_expr(expr)?;
@@ -61,7 +62,9 @@ impl <W: Write> Interpreter<W> {
       Stmt::While { condition, body } => {
         self.interpret_while(condition, body)?;
       }
-      Stmt::Function { .. } => unimplemented!()
+      Stmt::Function { name, params, body } => {
+        self.interpret_function_definition(name, params, body)?;
+      }
     }
     Ok(())
   }
@@ -91,7 +94,9 @@ impl <W: Write> Interpreter<W> {
     if self.is_truthy(&value) {
       self.interpret_stmts(slice::from_ref(then))?;
     } else {
-      els.map(|stmt| self.interpret_stmts(slice::from_ref(stmt))).transpose()?;
+      els
+        .map(|stmt| self.interpret_stmts(slice::from_ref(stmt)))
+        .transpose()?;
     }
     Ok(())
   }
@@ -101,6 +106,23 @@ impl <W: Write> Interpreter<W> {
       self.interpret_stmt(body)?;
     }
     Ok(())
+  }
+
+  fn interpret_function_definition(
+    &mut self,
+    name: &str,
+    params: &[String],
+    body: &[Stmt],
+  ) -> Result<Value, RuntimeError> {
+    let fun = Value::fun(
+      name.to_string(),
+      params.to_vec(),
+      body.to_vec(),
+      self.current_id,
+    );
+
+    self.env.define(self.current_id, name, fun);
+    Ok(Value::Nil)
   }
 
   pub fn interpret_expr(&mut self, expr: &Expr) -> Result<Value, RuntimeError> {
@@ -116,19 +138,25 @@ impl <W: Write> Interpreter<W> {
         operator,
         right,
       } => self.binary(left, operator, right),
-      Expr::Variable { name, line } =>
-        self.env
-          .get(self.current_id, name)
-          .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))
-          .map(|v| v.clone()),
+      Expr::Variable { name, line } => self
+        .env
+        .get(self.current_id, name)
+        .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))
+        .map(|v| v.clone()),
       Expr::Assign { value, name, line } => {
         let value = self.interpret_expr(value)?;
-        self.env.assign(self.current_id, name, value.clone())
+        self
+          .env
+          .assign(self.current_id, name, value.clone())
           .ok_or(RuntimeError::UndefinedVariable(*line, name.to_string()))?;
         Ok(value)
       }
-      Expr::Logical { left, operator, right } => self.logical(left, operator, right),
-      _ => unimplemented!()
+      Expr::Logical {
+        left,
+        operator,
+        right,
+      } => self.logical(left, operator, right),
+      Expr::Call {callee, args, line } => self.interpret_call(callee, args, *line)
     }
   }
 
@@ -159,10 +187,10 @@ impl <W: Write> Interpreter<W> {
       (TokenKind::Star, Value::Number(n1), Value::Number(n2)) => Value::Number(n1 * n2),
       (TokenKind::Slash, Value::Number(n1), Value::Number(n2)) => {
         if *n2 == 0.0 {
-          return Err(RuntimeError::ZeroDivision(operator.line()))
+          return Err(RuntimeError::ZeroDivision(operator.line()));
         }
         Value::Number(n1 / n2)
-      },
+      }
       (TokenKind::Less, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 < n2),
       (TokenKind::LessEqual, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 <= n2),
       (TokenKind::Greater, Value::Number(n1), Value::Number(n2)) => Value::Boolean(n1 > n2),
@@ -191,7 +219,12 @@ impl <W: Write> Interpreter<W> {
     })
   }
 
-  fn logical(&mut self, left: &Expr, operator: &Token, right: &Expr) -> Result<Value, RuntimeError> {
+  fn logical(
+    &mut self,
+    left: &Expr,
+    operator: &Token,
+    right: &Expr,
+  ) -> Result<Value, RuntimeError> {
     let left = self.interpret_expr(left)?;
 
     match operator.kind() {
@@ -202,7 +235,7 @@ impl <W: Write> Interpreter<W> {
         } else {
           Ok(left)
         }
-      },
+      }
       TokenKind::Or => {
         if self.is_truthy(&left) {
           Ok(left)
@@ -210,10 +243,20 @@ impl <W: Write> Interpreter<W> {
           self.interpret_expr(right)
         }
       }
-      _ => {
-        Err(RuntimeError::InvalidExpression)
-      }
+      _ => Err(RuntimeError::InvalidExpression),
     }
+  }
+
+  fn interpret_call(&mut self, callee: &Expr, args: &[Expr], line: usize) -> Result<Value, RuntimeError> {
+    let callee_value = self.interpret_expr(callee)?;
+    let arg_values = args.iter().map(|arg| self.interpret_expr(arg)).collect::<Result<Vec<Value>, RuntimeError>>()?;
+    let lox_fn = if let Value::Fn(lox_fn) = callee_value {
+      lox_fn
+    } else {
+      return Err(RuntimeError::NotAFunction(line, callee_value.type_name().to_string()))
+    };
+
+    lox_fn.call(self, arg_values, line)
   }
 
   fn are_equal(&self, val1: &Value, val2: &Value) -> bool {
@@ -235,6 +278,36 @@ impl <W: Write> Interpreter<W> {
       Value::Boolean(false) => true,
       _ => false,
     }
+  }
+
+  pub fn with_branching(&mut self, base_branch: usize, action:  impl Fn(&mut Interpreter<W>) -> Result<Value, RuntimeError>) -> Result<Value, RuntimeError> {
+    let old = self.current_id;
+    let new_branch = self.env.branch(base_branch, HashMap::new());
+    self.current_id = new_branch;
+    let res = action(self);
+    self.env.release(new_branch);
+    self.current_id = old;
+    res
+  }
+
+  pub fn branch(&mut self, base: usize) -> usize {
+    self.env.branch(base, HashMap::new())
+  }
+
+  pub fn change_scope(&mut self, scope_id: usize) {
+    self.current_id = scope_id
+  }
+
+  pub fn define_var(&mut self, name: &str, value: Value) {
+    self.env.define(self.current_id, name, value)
+  }
+
+  pub fn current_scope(&self) -> usize {
+    self.current_id
+  }
+
+  pub fn release_scope(&mut self, scope_id: usize) {
+    self.env.release(scope_id);
   }
 }
 
@@ -754,7 +827,6 @@ mod tests {
     assert_eq!(res4, "hello\n");
     assert_eq!(res5, "false\n");
     assert_eq!(res6, "nil\n");
-
   }
 
   #[test]
@@ -780,4 +852,41 @@ mod tests {
     let res = interpret_program("print 1 or 1/0").unwrap();
     assert_eq!(res, "1\n");
   }
+
+  #[test]
+  fn define_a_function() {
+    let res = interpret_program("fun foo() {}").unwrap();
+    assert_eq!(res, "");
+  }
+
+  #[test]
+  fn define_a_function_and_print_it() {
+    let res = interpret_program("fun foo() {}\n print foo;").unwrap();
+    assert_eq!(res, "<fn foo>\n");
+  }
+
+  #[test]
+  fn define_a_function_and_call_it() {
+    let res = interpret_program("fun foo() { print \"foo\"; }\n foo();").unwrap();
+    assert_eq!(res, "foo\n");
+  }
+
+  #[test]
+  fn define_a_function_with_args_and_call_it() {
+    let res = interpret_program("fun foo(a, b) { print a + b; }\n foo(1, 5);").unwrap();
+    assert_eq!(res, "6\n");
+  }
+
+  #[test]
+  fn define_a_function_that_captures_scope_and_call_it() {
+    let res = interpret_program("var outside = 10; fun foo(a) { print outside + a; }\n foo(2);").unwrap();
+    assert_eq!(res, "12\n");
+  }
+
+  // #[test]
+  // fn define_a_function_that_takes_dynamic_scope_and_call_it() {
+  //   let res = interpret_program(concat!(
+  //   )).unwrap();
+  //   assert_eq!(res, "12\n");
+  // }
 }

@@ -14,4 +14,8 @@ pub enum RuntimeError {
   CannotWriteToStdout,
   #[error("[line {0}]: Tried to divide by zero")]
   ZeroDivision(usize),
+  #[error("[line {0}]: Expected function, got {1}")]
+  NotAFunction(usize, String),
+  #[error("[line {0}]: {1} expeted {2} arguments, but {3} received")]
+  WrongNumberOfArguments(usize, String, usize, usize),
 }
