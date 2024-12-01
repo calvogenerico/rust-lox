@@ -109,6 +109,7 @@ impl LoxParser {
         TokenKind::LeftBrace,
         TokenKind::While,
         TokenKind::For,
+        TokenKind::Return
       ])
       .map(|t| t.kind())
     {
@@ -117,6 +118,7 @@ impl LoxParser {
       Some(TokenKind::LeftBrace) => self.scope_block()?,
       Some(TokenKind::While) => self.while_stmt()?,
       Some(TokenKind::For) => self.for_stmt()?,
+      Some(TokenKind::Return) => self.return_stmt()?,
       _ => self.expression_stmt()?,
     };
 
@@ -235,6 +237,12 @@ impl LoxParser {
 
     stmts.push(while_stmt);
     Ok(Stmt::ScopeBlock(stmts))
+  }
+
+  fn return_stmt(&mut self) -> Result<Stmt, ParseError> {
+    let expr = self.expression()?;
+    self.consume(TokenKind::Semicolon)?;
+    Ok(Stmt::Return(expr))
   }
 
   fn expression_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -1002,5 +1010,28 @@ mod tests {
   fn can_parse_a_function_with_body() {
     let ast = parse_from_code("fun somefunc(a, b) {a + b; b - a;}");
     assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((+ `a` `b`) (- `b` `a`)))");
+  }
+
+  #[test]
+  fn can_parse_a_return_statement() {
+    let ast = parse_from_code("fun somefunc(a, b) { return a + b; }");
+    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((return (+ `a` `b`))))")
+  }
+
+  #[test]
+  fn can_parse_a_nested_return_stmt() {
+    let src = concat!(
+     "fun somefunc(a, b) {",
+    "\nif (a > b) {",
+    "\nvar c = a +1 ;",
+    "\nreturn c;",
+    "\n} else {",
+    "\n return b;",
+    "\n}",
+    "\n}"
+    );
+
+    let ast = parse_from_code(src);
+    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((if (> `a` `b`) (block_scope (def_var `c` (+ `a` 1.0)) (return `c`)) (block_scope (return `b`)))))")
   }
 }

@@ -83,6 +83,7 @@ impl<W: Write> Interpreter<W> {
       Stmt::Function { name, params, body } => {
         self.interpret_function_definition(name, params, body)?;
       }
+      Stmt::Return(_) => unimplemented!()
     }
     Ok(())
   }
@@ -915,6 +916,7 @@ mod tests {
     let parsed = res.trim().parse::<u64>();
     assert!(parsed.is_ok());
   }
+
 
   // #[test]
   // fn define_a_function_that_takes_dynamic_scope_and_call_it() {
