@@ -6,7 +6,6 @@ use crate::parse::expr::Expr;
 use crate::parse::stmt::Stmt;
 use crate::scan::token::Token;
 use crate::scan::token_kind::TokenKind;
-use std::collections::HashMap;
 use std::io::Write;
 use std::slice;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,7 +20,7 @@ pub struct Interpreter<W: Write> {
 impl<W: Write> Interpreter<W> {
   pub fn new(writer: W) -> Self {
     let mut env = BranchingScope::empty();
-    let global_id = env.branch(0, HashMap::new());
+    let global_id = env.branch(0);
 
     env.define(
       global_id,
@@ -89,7 +88,7 @@ impl<W: Write> Interpreter<W> {
   }
 
   fn interpret_scope_block_stmt(&mut self, stmts: &[Stmt]) -> Result<(), RuntimeError> {
-    let new_scope = self.env.branch(self.current_id, HashMap::new());
+    let new_scope = self.env.branch(self.current_id);
     self.current_id = new_scope;
     self.interpret_stmts(stmts)?;
     self.current_id = self.env.release(self.current_id);
@@ -133,7 +132,7 @@ impl<W: Write> Interpreter<W> {
     params: &[String],
     body: &[Stmt],
   ) -> Result<Value, RuntimeError> {
-    let new_branch = self.env.branch(self.current_id, HashMap::new());
+    let new_branch = self.env.branch(self.current_id);
     let fun = Value::fun(
       name.to_string(),
       params.to_vec(),
@@ -324,7 +323,7 @@ impl<W: Write> Interpreter<W> {
     action: impl FnOnce(&mut Interpreter<W>) -> Result<Value, RuntimeError>,
   ) -> Result<Value, RuntimeError> {
     let old = self.current_id;
-    let new_branch = self.env.branch(base_branch, HashMap::new());
+    let new_branch = self.env.branch(base_branch);
     self.current_id = new_branch;
     let res = action(self);
     self.env.release(new_branch);
@@ -933,29 +932,22 @@ mod tests {
 
   #[test]
   fn coso() {
-    let src = "fun dameFun() {
-    var a = 0;
-    fun funInterna() {
-      a = a + 1;
-      return a;
-    }
-    return funInterna;
-}
+    let src = "
+      fun dameFun() {
+          var a = 0;
+          fun funInterna() {
+            a = a + 1;
+            return a;
+          }
+          return funInterna;
+      }
 
-var devuelta = dameFun();
+      var devuelta = dameFun();
 
-print devuelta();
-";
+      print devuelta();
+    ";
 
     let res = interpret_program(src).unwrap();
     assert_eq!(res, "1\n")
   }
-
-
-  // #[test]
-  // fn define_a_function_that_takes_dynamic_scope_and_call_it() {
-  //   let res = interpret_program(concat!(
-  //   )).unwrap();
-  //   assert_eq!(res, "12\n");
-  // }
 }
