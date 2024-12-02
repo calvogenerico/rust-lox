@@ -240,7 +240,11 @@ impl LoxParser {
   }
 
   fn return_stmt(&mut self) -> Result<Stmt, ParseError> {
-    let expr = self.expression()?;
+    let expr = if let Some(TokenKind::Semicolon) = self.peek_kind() {
+      Expr::LiteralNil
+    } else {
+      self.expression()?
+    };
     self.consume(TokenKind::Semicolon)?;
     Ok(Stmt::Return(expr))
   }
@@ -1003,19 +1007,19 @@ mod tests {
   #[test]
   fn can_parse_a_function_def() {
     let ast = parse_from_code("fun somefunc(a, b) {}");
-    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ())");
+    assert_eq!(ast, "(fun_def `somefunc` (`a` `b`) ())");
   }
 
   #[test]
   fn can_parse_a_function_with_body() {
     let ast = parse_from_code("fun somefunc(a, b) {a + b; b - a;}");
-    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((+ `a` `b`) (- `b` `a`)))");
+    assert_eq!(ast, "(fun_def `somefunc` (`a` `b`) ((+ `a` `b`) (- `b` `a`)))");
   }
 
   #[test]
   fn can_parse_a_return_statement() {
     let ast = parse_from_code("fun somefunc(a, b) { return a + b; }");
-    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((return (+ `a` `b`))))")
+    assert_eq!(ast, "(fun_def `somefunc` (`a` `b`) ((return (+ `a` `b`))))")
   }
 
   #[test]
@@ -1032,6 +1036,12 @@ mod tests {
     );
 
     let ast = parse_from_code(src);
-    assert_eq!(ast, "(fun_def `somefunc` `a` `b` ((if (> `a` `b`) (block_scope (def_var `c` (+ `a` 1.0)) (return `c`)) (block_scope (return `b`)))))")
+    assert_eq!(ast, "(fun_def `somefunc` (`a` `b`) ((if (> `a` `b`) (block_scope (def_var `c` (+ `a` 1.0)) (return `c`)) (block_scope (return `b`)))))")
+  }
+
+  #[test]
+  fn return_with_nothing_parse_to_return_nil() {
+    let ast = parse_from_code("fun foo () { return;}");
+    assert_eq!(ast, "(fun_def `foo` () ((return nil)))")
   }
 }

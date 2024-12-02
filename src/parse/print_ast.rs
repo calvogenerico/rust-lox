@@ -42,7 +42,7 @@ impl PrintAst {
         self.print_stmt(body)
       ),
       Stmt::Function { name, params, body } =>
-        format!("(fun_def `{}` {} ({}))", name, params.iter().map(|s| format!("`{}`", s) ).collect::<Vec<_>>().join(" "), self.print_stmts(body)),
+        format!("(fun_def `{}` ({}) ({}))", name, params.iter().map(|s| format!("`{}`", s) ).collect::<Vec<_>>().join(" "), self.print_stmts(body)),
       Stmt::Return(expr) => format!("(return {})", self.print_expr(expr))
     }
   }
